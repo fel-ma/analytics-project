@@ -136,7 +136,8 @@ def load_data(file_bytes: bytes) -> pd.DataFrame:
     df = pd.read_csv(io.BytesIO(file_bytes), encoding="utf-8-sig")
     df.columns = df.columns.str.strip()
     df["Audience_n"] = pd.to_numeric(
-        df["Audience"].astype(str).str.strip(), errors="coerce"
+        df["Audience"].astype(str).str.strip().str.replace(",", "", regex=False),
+        errors="coerce"
     )
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
     df["Regional II"] = df["Regional II"].fillna("Unknown").str.strip()
