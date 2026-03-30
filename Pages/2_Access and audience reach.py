@@ -192,10 +192,10 @@ with c1:
     fig_line.update_layout(
         title=dict(
             text="Total Audience Reached",
-            font=dict(size=13, color="#222", family="Arial Black"),
+            font=dict(size=13, color="#333", family="Arial", weight="normal"),
             x=0.5, xanchor="center",
         ),
-        height=240,
+        height=270,
         margin=dict(l=50, r=20, t=44, b=40),
         paper_bgcolor=WHITE,
         plot_bgcolor=WHITE,
@@ -216,6 +216,7 @@ with c1:
             linecolor="#ccc", linewidth=1,
             title=None,
             rangemode="tozero",
+            range=[0, yearly["Audience_n"].max() * 1.25],
         ),
         hoverlabel=dict(bgcolor=ORANGE, font_color="white", font_size=12, bordercolor=ORANGE),
     )
@@ -287,27 +288,31 @@ with c5:
             colors=["#E8673A", "#4CAF7D", "#C0392B"],
             line=dict(color="white", width=2.5),
         ),
-        textposition="inside",
+        # Metro and Regional: percent inside | Remote: label+percent outside
+        textposition=["inside", "inside", "outside"],
         textinfo="percent",
-        textfont=dict(size=13, color="white"),
+        textfont=dict(size=12, color="white"),
         insidetextorientation="horizontal",
         hovertemplate="<b>%{label}</b><br>Audience: %{value:,.0f}<br>Share: %{percent}<extra></extra>",
-        pull=[0, 0, 0.12],
+        pull=[0, 0, 0.15],
         direction="clockwise",
         sort=False,
     ))
     fig_pie.update_layout(
-        title=dict(text="Audience by Region Type",
-                   font=dict(size=13, color="#222"), x=0.5, xanchor="center"),
-        height=280,
-        margin=dict(l=10, r=10, t=44, b=10),
+        title=dict(
+            text="Audience by Region Type",
+            font=dict(size=13, color="#333", family="Arial", weight="normal"),
+            x=0.5, xanchor="center",
+        ),
+        height=290,
+        margin=dict(l=20, r=20, t=44, b=30),
         paper_bgcolor=WHITE,
         showlegend=True,
         legend=dict(
             orientation="h",
-            yanchor="bottom", y=-0.18,
+            yanchor="bottom", y=-0.15,
             xanchor="center", x=0.5,
-            font=dict(size=12, color="#222"),
+            font=dict(size=12, color="#333"),
         ),
         hoverlabel=dict(bgcolor="#333", font_color="white", font_size=11),
     )
