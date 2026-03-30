@@ -2,17 +2,16 @@
 app.py
 ======
 Main entry point for the Monkey Baa AI Reporting System.
-Run with:  streamlit run app.py
+Run with:  PYTHONPATH=$(pwd) streamlit run app.py
 
-This file handles:
-- Page configuration
-- Sidebar (API key, model, file upload)
-- Stores shared state (df, client) in st.session_state
-- Navigation is handled automatically by Streamlit's multipage system (pages/ folder)
+Handles:
+- Sidebar: API key, model, CSV upload (shared across ALL pages)
+- Stores df, api_key, model in st.session_state so pages don't re-upload
 """
 
+import io
+import pandas as pd
 import streamlit as st
-from utils.data_loader import load_and_clean
 
 # ─────────────────────────────────────────────────────────
 # Page config
@@ -30,71 +29,100 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 # ─────────────────────────────────────────────────────────
-# Sidebar — shared across all pages
+# Shared data loader (CSV — with comma fix)
+# ─────────────────────────────────────────────────────────
+@st.cache_data
+def load_audience_csv(file_bytes: bytes) -> pd.DataFrame:
+    df = pd.read_csv(io.BytesIO(file_bytes), encoding="utf-8-sig")
+    df.columns = df.columns.str.strip()
+    # Fix: remove commas from numbers like "3,213.00"
+    df["Audience_n"] = pd.to_numeric(
+        df["Audience"].astype(str).str.strip().str.replace(",", "", regex=False),
+        errors="coerce",
+    )
+    df["Year"]        = pd.to_numeric(df["Year"], errors="coerce")
+    df["Regional II"] = df["Regional II"].fillna("Unknown").str.strip()
+    return df
+
+
+# ─────────────────────────────────────────────────────────
+# Sidebar — shared across ALL pages
 # ─────────────────────────────────────────────────────────
 with st.sidebar:
-    st.title("🎭 Monkey Baa")
+    st.markdown("## 🎭 Monkey Baa")
     st.caption("AI Reporting System")
     st.divider()
 
-    st.subheader("⚙️ Configuration")
+    st.markdown("#### ⚙️ Configuration")
     api_key = st.text_input(
         "OpenAI API key", type="password", placeholder="sk-...",
-        help="Your key is never stored — it lives only in this session."
+        help="Your key is never stored — only lives in this session.",
     )
     model = st.selectbox("Model", ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"])
 
+    if api_key:
+        st.session_state["api_key"] = api_key
+    if model:
+        st.session_state["model"] = model
+
     st.divider()
-    st.subheader("📂 Data")
-    uploaded = st.file_uploader("Upload Excel file (.xlsx)", type=["xlsx"])
+    st.markdown("#### 📂 Data — upload once")
+
+    uploaded = st.file_uploader(
+        "Audience_final_data.csv",
+        type=["csv"],
+        help="Upload once — available on all report pages automatically.",
+    )
 
     if uploaded:
-        df = load_and_clean(uploaded.read())
-        st.session_state["df"]      = df
-        st.session_state["api_key"] = api_key
-        st.session_state["model"]   = model
-
-        completed = df[df["Status"] == "Completed"]
+        df = load_audience_csv(uploaded.read())
+        st.session_state["df_audience"] = df
+        total = int(df["Audience_n"].sum())
         st.success(f"✅ {len(df):,} records loaded")
-        st.caption(f"{len(completed)} completed · {(df['Status']=='Planned').sum()} planned")
+        st.caption(f"Total audience: {total:,} · Years: 2021–2025")
+    elif "df_audience" in st.session_state:
+        st.success("✅ Data already loaded")
+        st.caption("Navigate to any report ↑")
     else:
-        st.info("Upload the Dashboard Excel file to begin.")
+        st.info("Upload the CSV to enable all reports.")
 
     st.divider()
     st.caption("Select a report from the navigation above ↑")
 
+
 # ─────────────────────────────────────────────────────────
-# Home screen (shown when no page is selected)
+# Home screen
 # ─────────────────────────────────────────────────────────
 st.title("🎭 Monkey Baa — AI Reporting System")
-st.caption("Select a report from the sidebar navigation to get started.")
+st.caption("Upload the CSV once in the sidebar, then navigate to any report.")
 
 st.markdown("""
 ### Available Reports
 
 | # | Report | What it covers |
 |---|--------|----------------|
-| 1 | **Access & Audience Reach** | Attendance, goal achievement, geographic reach |
-| 2 | **High Quality Outcomes** | Performance quality metrics and year-on-year growth |
-| 3 | **Emotional & Social Impact** | Audience emotional response and community outcomes |
-| 4 | **Arts & Cultural Impact** | Cultural value, artistic reach, sector contribution |
-| 5 | **Executive Overview** | Full program summary for leadership |
-| 6 | **Impact Report — Sponsors** | ROI and outcomes tailored for funders and sponsors |
+| 2 | **Access & Audience Reach** | Total audience, geographic reach, Metro vs Regional vs Remote |
+| 3 | **High Quality Outcomes** | Year-on-year growth, event quality, performance trends |
+| 4 | **Emotional & Social Impact** | Community outcomes, equity, social value |
+| 5 | **Arts & Cultural Impact** | Cultural reach, sector contribution, artistic footprint |
+| 6 | **Executive Overview** | Full program summary for leadership and board |
+| 7 | **Impact Report — Sponsors** | ROI and outcomes tailored for funders and sponsors |
 
 ---
 
 ### How to use
 1. Enter your **OpenAI API key** in the sidebar
-2. **Upload the Monkey Baa Dashboard Excel file**
+2. Upload **Audience_final_data.csv** once — stays loaded across all pages
 3. Navigate to any report using the menu above
-4. Click **Run AI Analysis** inside the report
+4. Click **Generate AI Insights** inside the report
 
 ---
 
 ### Dataset at a glance
-- **183 records** — 50 completed · 132 planned · 1 cancelled
-- **8 states** — NSW leads (64 stops), followed by VIC (52)
-- **Total completed audience** ≈ 192,000 attendees
-- **Date range**: 2021 – 2025
+- **603 records** across 2021–2025
+- **8 states** — NSW leads, followed by VIC and QLD
+- **Total audience: 351,772**
+- **Event types**: Workshop, On-Tour, Self-presented, Co-Presented, Placemaking
 """)
