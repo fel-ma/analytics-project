@@ -83,10 +83,35 @@ with st.sidebar:
         st.success(f"✅ {len(df):,} records loaded")
         st.caption(f"Total audience: {total:,} · Years: 2021–2025")
     elif "df_audience" in st.session_state:
-        st.success("✅ Data already loaded")
+        st.success("✅ Audience data loaded")
         st.caption("Navigate to any report ↑")
     else:
-        st.info("Upload the CSV to enable all reports.")
+        st.info("Upload the Audience CSV to enable all reports.")
+
+    st.markdown("#### 📂 Survey data")
+    uploaded2 = st.file_uploader(
+        "Survey CSV or Excel",
+        type=["csv", "xlsx"],
+        help="Upload the survey dataset — available on all pages automatically.",
+        key="survey_upload",
+    )
+
+    if uploaded2:
+        raw = uploaded2.read()
+        if uploaded2.name.endswith(".xlsx"):
+            import io as _io
+            df2 = pd.read_excel(_io.BytesIO(raw))
+        else:
+            import io as _io
+            df2 = pd.read_csv(_io.BytesIO(raw), encoding="utf-8-sig")
+        df2.columns = df2.columns.str.strip()
+        st.session_state["df_survey"] = df2
+        st.success(f"✅ Survey: {len(df2):,} rows loaded")
+        st.caption(f"Columns: {', '.join(df2.columns[:4].tolist())}…")
+    elif "df_survey" in st.session_state:
+        st.success("✅ Survey data loaded")
+    else:
+        st.info("Upload the survey file when ready.")
 
     st.divider()
     st.caption("Select a report from the navigation above ↑")

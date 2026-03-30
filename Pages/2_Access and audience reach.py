@@ -9,8 +9,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
+import plotly.graph_objects as go
 import streamlit as st
 from openai import OpenAI
 
@@ -160,25 +159,67 @@ if run:
             st.error(f"API error: {e}")
             st.stop()
 
-# ── Section 1: Line chart (small) + insights (prominent) ──
+# ── Section 1: Line chart interactive (Plotly) + insights ──
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 c1, c2 = st.columns([4, 6])
 with c1:
     yearly = df.groupby("Year")["Audience_n"].sum().reset_index()
-    fig, ax = plt.subplots(figsize=(3.8, 2.4))
-    fig.patch.set_facecolor(WHITE); ax.set_facecolor(WHITE)
-    ax.plot(yearly["Year"], yearly["Audience_n"],
-            color=ORANGE, linewidth=2.0, marker="o", markersize=5)
-    ax.fill_between(yearly["Year"], yearly["Audience_n"], alpha=0.07, color=ORANGE)
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v,_: f"{int(v):,}"))
-    ax.set_xticks(yearly["Year"].astype(int))
-    ax.set_title("Total Audience Reached", fontsize=10, fontweight="600",
-                 color="#333", pad=6, loc="left")
-    ax.spines[["top","right"]].set_visible(False)
-    ax.spines[["left","bottom"]].set_color("#ddd")
-    ax.tick_params(colors=GRAY_TEXT, labelsize=8)
-    plt.tight_layout(pad=0.4)
-    st.pyplot(fig, use_container_width=True); plt.close(fig)
+    yearly["Year"] = yearly["Year"].astype(int)
+
+    fig_line = go.Figure()
+
+    # Shaded area under line
+    fig_line.add_trace(go.Scatter(
+        x=yearly["Year"], y=yearly["Audience_n"],
+        mode="none", fill="tozeroy",
+        fillcolor="rgba(232,103,58,0.10)",
+        hoverinfo="skip", showlegend=False,
+    ))
+
+    # Main line + markers
+    fig_line.add_trace(go.Scatter(
+        x=yearly["Year"], y=yearly["Audience_n"],
+        mode="lines+markers+text",
+        line=dict(color=ORANGE, width=2.8, shape="spline", smoothing=0.5),
+        marker=dict(size=9, color=ORANGE, line=dict(color="white", width=2)),
+        text=[f"{int(v):,}" for v in yearly["Audience_n"]],
+        textposition="top center",
+        textfont=dict(size=10, color="#555"),
+        hovertemplate="<b>%{x}</b><br>Audience: <b>%{y:,.0f}</b><extra></extra>",
+        showlegend=False,
+    ))
+
+    fig_line.update_layout(
+        title=dict(
+            text="Total Audience Reached",
+            font=dict(size=13, color="#222", family="Arial Black"),
+            x=0.5, xanchor="center",
+        ),
+        height=240,
+        margin=dict(l=50, r=20, t=44, b=40),
+        paper_bgcolor=WHITE,
+        plot_bgcolor=WHITE,
+        xaxis=dict(
+            tickmode="array",
+            tickvals=yearly["Year"].tolist(),
+            ticktext=[str(y) for y in yearly["Year"].tolist()],
+            tickfont=dict(size=11, color="#333", family="Arial"),
+            linecolor="#ccc", linewidth=1.5,
+            showgrid=False, zeroline=False,
+            title=None,
+        ),
+        yaxis=dict(
+            tickformat=",.0f",
+            tickfont=dict(size=10, color="#333", family="Arial"),
+            gridcolor="#f0f0f0", gridwidth=1,
+            zeroline=True, zerolinecolor="#ddd", zerolinewidth=1,
+            linecolor="#ccc", linewidth=1,
+            title=None,
+            rangemode="tozero",
+        ),
+        hoverlabel=dict(bgcolor=ORANGE, font_color="white", font_size=12, bordercolor=ORANGE),
+    )
+    st.plotly_chart(fig_line, use_container_width=True, config={"displayModeBar": False})
 with c2:
     st.markdown(bullets_html(insights_main) if insights_main
                 else placeholder("Click <b>Generate AI Insights</b> to load analysis."),
@@ -197,42 +238,80 @@ with c4:
     sdf.columns = ["State","Audience"]
     sdf["Audience"] = sdf["Audience"].round(0).astype(int)
     sdf["%"] = (sdf["Audience"]/sdf["Audience"].sum()*100).round(1).astype(str)+"%"
-    rows = "".join(f"<tr><td>{r['State']}</td><td>{r['Audience']:,}</td><td>{r['%']}</td></tr>"
-                   for _, r in sdf.iterrows())
+    rows = "".join(
+        f"<tr><td style='text-align:center;'>{r['State']}</td>"
+        f"<td style='text-align:center;'>{r['Audience']:,}</td>"
+        f"<td style='text-align:center;'>{r['%']}</td></tr>"
+        for _, r in sdf.iterrows()
+    )
     st.markdown(f"""
-    <div style='font-size:13px;font-weight:600;color:#333;margin-bottom:6px;'>
+    <div style='font-size:13px;font-weight:600;color:#333;
+                margin-bottom:6px;text-align:center;'>
       Audience by State
     </div>
-    <table class='st-table'>
+    <table style='width:100%;border-collapse:collapse;font-size:12px;color:#333;
+                  border:1.5px solid #d4c8be;'>
       <thead><tr>
-        <th style='background-color:{ORANGE};color:white;'>State</th>
-        <th style='background-color:{ORANGE};color:white;'>Audience</th>
-        <th style='background-color:{ORANGE};color:white;'>%</th>
+        <th style='background-color:{ORANGE};color:white;padding:7px 10px;
+                   text-align:center;border:1px solid #c85a2a;'>State</th>
+        <th style='background-color:{ORANGE};color:white;padding:7px 10px;
+                   text-align:center;border:1px solid #c85a2a;'>Audience</th>
+        <th style='background-color:{ORANGE};color:white;padding:7px 10px;
+                   text-align:center;border:1px solid #c85a2a;'>%</th>
       </tr></thead>
       <tbody>{rows}</tbody>
-    </table>""", unsafe_allow_html=True)
+    </table>
+    <style>
+      table tr td {{ border: 1px solid #ddd; padding: 5px 10px; }}
+      table tr:nth-child(even) {{ background-color: #fdf6f2; }}
+      table tr:hover {{ background-color: #fce8dc; }}
+    </style>
+    """, unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ── Section 3: Pie (small) + regional insights (prominent) ──
+# ── Section 3: Pie interactive (Plotly) + regional insights ──
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 c5, c6 = st.columns([4, 6])
 with c5:
-    st.markdown("<div class='section-title'>Audience by Region Type</div>",
-                unsafe_allow_html=True)
     reg = df.groupby("Regional II")["Audience_n"].sum()
     for cat in ["Metro","Regional","Remote"]:
         if cat not in reg.index: reg[cat] = 0
     reg = reg[["Metro","Regional","Remote"]]
-    fig, ax = plt.subplots(figsize=(3.0, 2.6))
-    fig.patch.set_facecolor(WHITE)
-    _, _, autotexts = ax.pie(reg, labels=reg.index, autopct="%1.1f%%",
-        colors=["#E8673A","#4CAF7D","#E84040"], startangle=90,
-        wedgeprops={"linewidth":1.2,"edgecolor":"white"},
-        textprops={"fontsize":9,"color":"#333"})
-    for at in autotexts:
-        at.set_fontsize(8); at.set_color("white"); at.set_fontweight("600")
-    plt.tight_layout(pad=0.2)
-    st.pyplot(fig, use_container_width=False); plt.close(fig)
+    total_reg = reg.sum()
+
+    fig_pie = go.Figure(go.Pie(
+        labels=reg.index.tolist(),
+        values=reg.values.tolist(),
+        hole=0.38,
+        marker=dict(
+            colors=["#E8673A", "#4CAF7D", "#C0392B"],
+            line=dict(color="white", width=2.5),
+        ),
+        textposition="inside",
+        textinfo="percent",
+        textfont=dict(size=13, color="white"),
+        insidetextorientation="horizontal",
+        hovertemplate="<b>%{label}</b><br>Audience: %{value:,.0f}<br>Share: %{percent}<extra></extra>",
+        pull=[0, 0, 0.12],
+        direction="clockwise",
+        sort=False,
+    ))
+    fig_pie.update_layout(
+        title=dict(text="Audience by Region Type",
+                   font=dict(size=13, color="#222"), x=0.5, xanchor="center"),
+        height=280,
+        margin=dict(l=10, r=10, t=44, b=10),
+        paper_bgcolor=WHITE,
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom", y=-0.18,
+            xanchor="center", x=0.5,
+            font=dict(size=12, color="#222"),
+        ),
+        hoverlabel=dict(bgcolor="#333", font_color="white", font_size=11),
+    )
+    st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
 with c6:
     st.markdown(bullets_html(insights_region) if insights_region
                 else placeholder("Geographic insights will appear after generation."),
