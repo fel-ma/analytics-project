@@ -127,9 +127,12 @@ st.markdown("<div style='margin-top:10px'></div>", unsafe_allow_html=True)
 # ── AI button ────────────────────────────────────────────
 run              = st.button("🚀 Generate AI Insights", type="primary")
 context          = build_context(df)
-insights_main    = st.session_state.get("ar_main",    None)
-insights_region  = st.session_state.get("ar_region",  None)
-insights_summary = st.session_state.get("ar_summary", None)
+insights_main    = st.session_state.get("ar_main",      None)
+insights_region  = st.session_state.get("ar_region",    None)
+insights_summary = st.session_state.get("ar_summary",   None)
+insights_weak    = st.session_state.get("ar_weak",      None)
+insights_rec     = st.session_state.get("ar_rec",       None)
+insights_recdet  = st.session_state.get("ar_recdet",    None)
 
 if run:
     if not api_key:
@@ -155,6 +158,64 @@ if run:
             st.session_state["ar_main"]    = insights_main
             st.session_state["ar_region"]  = insights_region
             st.session_state["ar_summary"] = insights_summary
+
+            # ── Weaknesses ──
+            insights_weak = call_ai(api_key, model,
+                """You are a strategic analyst for an Australian children's theatre company.
+Based on the audience dataset, identify exactly 2 weaknesses in the touring program's reach and access.
+Return ONLY this JSON structure, no markdown, no preamble:
+{
+  "weakness_1": {
+    "title": "Weakness 1 title (5-7 words)",
+    "points": ["point 1", "point 2", "point 3"]
+  },
+  "weakness_2": {
+    "title": "Weakness 2 title (5-7 words)",
+    "points": ["point 1", "point 2", "point 3"]
+  }
+}
+Base weaknesses on real data patterns: Remote audience %, state coverage gaps, school vs general public split, year-on-year trends.""",
+                context)
+
+            # ── Primary Recommendation ──
+            insights_rec = call_ai(api_key, model,
+                """You are a strategic analyst for an Australian children's theatre company.
+Based on the audience dataset, write ONE primary strategic recommendation to address the access and reach gaps.
+Return ONLY this JSON structure, no markdown, no preamble:
+{
+  "title": "Primary Recommendation title (5-8 words)",
+  "description": "2-3 sentence strategic recommendation paragraph addressing the specific data gaps found"
+}
+Be specific and data-driven. Reference actual patterns from the data.""",
+                context)
+
+            # ── Recommendation Details ──
+            insights_recdet = call_ai(api_key, model,
+                """You are a strategic analyst for an Australian children's theatre company.
+Based on the audience dataset, provide exactly 3 detailed actionable recommendations.
+Return ONLY this JSON structure, no markdown, no preamble:
+{
+  "items": [
+    {
+      "title": "Action title (5-8 words)",
+      "points": ["specific action 1", "specific action 2"]
+    },
+    {
+      "title": "Action title (5-8 words)",
+      "points": ["specific action 1", "specific action 2"]
+    },
+    {
+      "title": "Action title (5-8 words)",
+      "points": ["specific action 1", "specific action 2"]
+    }
+  ]
+}
+Base each recommendation on actual data gaps: Remote = very low %, school engagement, state coverage.""",
+                context)
+
+            st.session_state["ar_weak"]    = insights_weak
+            st.session_state["ar_rec"]     = insights_rec
+            st.session_state["ar_recdet"]  = insights_recdet
         except Exception as e:
             st.error(f"API error: {e}")
             st.stop()
@@ -323,7 +384,203 @@ with c6:
                 unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ── Summary ──────────────────────────────────────────────
+
+# ── Recommendation Details Section ───────────────────────
+st.markdown("""
+<style>
+  .rec-section-title {
+    font-size:15px; font-weight:700; color:#333;
+    margin:4px 0 14px 0; padding-bottom:8px;
+    border-bottom: 2px solid #E8673A;
+    display:inline-block;
+  }
+  .weak-card {
+    background-color:#FFF8F5; border:1.5px solid #F2D0C0;
+    border-radius:12px; padding:18px 20px; height:100%;
+  }
+  .weak-header {
+    display:flex; align-items:center; gap:10px; margin-bottom:10px;
+  }
+  .warn-icon {
+    width:28px; height:28px; flex-shrink:0;
+    background:#FFF8F5; border:1.5px solid #E8673A;
+    border-radius:6px; display:flex; align-items:center;
+    justify-content:center; font-size:15px;
+  }
+  .weak-title { font-size:13px; font-weight:700; color:#333; }
+  .weak-card ul {
+    margin:0; padding-left:18px;
+    color:#555; font-size:13px; line-height:1.75;
+  }
+  .weak-card li { margin-bottom:5px; }
+
+  .rec-primary {
+    background:linear-gradient(135deg,#FFF8F5 0%,#FDF0E8 100%);
+    border:1.5px solid #E8673A; border-radius:12px;
+    padding:20px 24px; display:flex; gap:16px; align-items:flex-start;
+    margin-top:12px;
+  }
+  .star-bg {
+    background:#E8673A; color:white; border-radius:50%;
+    width:34px; height:34px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:17px;
+  }
+  .rec-primary-title { font-size:14px; font-weight:700; color:#333; margin-bottom:8px; }
+  .rec-primary p { margin:0; color:#555; font-size:13px; line-height:1.75; }
+
+  .rec-detail-card {
+    background-color:#F7F4F1; border-radius:12px;
+    padding:22px 24px; margin-top:12px;
+  }
+  .rec-detail-header {
+    font-size:14px; font-weight:700; color:#333;
+    margin-bottom:16px; display:flex; align-items:center; gap:8px;
+  }
+  .rec-item {
+    background:white; border-radius:10px; padding:14px 20px;
+    margin-bottom:8px; border-left:4px solid #E8673A;
+  }
+  .rec-item-title {
+    font-size:13px; font-weight:700; color:#C4512A; margin-bottom:8px;
+  }
+  .rec-item ul {
+    margin:0; padding-left:18px;
+    color:#555; font-size:12.5px; line-height:1.72;
+  }
+  .rec-item li { margin-bottom:4px; }
+  .rec-connector { color:#E8673A; text-align:left; font-size:16px;
+                   padding-left:18px; margin:4px 0; }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("<div class='rec-section-title'>🔍 Key Findings & Recommendations</div>",
+            unsafe_allow_html=True)
+
+# ── Only show this section after AI has run ───────────────
+if not insights_weak and not insights_rec and not insights_recdet:
+    st.markdown(
+        "<div style='color:#bbb;font-style:italic;font-size:13px;padding:12px 0;'>"
+        "Click <b>Generate AI Insights</b> above to load findings and recommendations.</div>",
+        unsafe_allow_html=True)
+else:
+    # ── Parse Weaknesses ─────────────────────────────────
+    import json as _json
+
+    try:
+        w_data    = _json.loads(insights_weak) if insights_weak else {}
+        w1_title  = w_data.get("weakness_1", {}).get("title",  "Weakness 1")
+        w1_points = w_data.get("weakness_1", {}).get("points", [])
+        w2_title  = w_data.get("weakness_2", {}).get("title",  "Weakness 2")
+        w2_points = w_data.get("weakness_2", {}).get("points", [])
+    except Exception:
+        w1_title, w1_points = "Weakness 1", []
+        w2_title, w2_points = "Weakness 2", []
+
+    def make_li(points):
+        return "".join(f"<li style='margin-bottom:5px;'>{p}</li>" for p in points)
+
+    wc1, wc2 = st.columns(2)
+    with wc1:
+        st.markdown(f"""
+        <div class='weak-card'>
+          <div class='weak-header'>
+            <div class='warn-icon'>⚠️</div>
+            <div>
+              <div style='font-size:10px;font-weight:600;color:#E8673A;
+                          text-transform:uppercase;letter-spacing:.6px;
+                          margin-bottom:2px;'>Key Weakness</div>
+              <div class='weak-title'>{w1_title}</div>
+            </div>
+          </div>
+          <ul style='margin:0;padding-left:18px;color:#555;
+                     font-size:13px;line-height:1.75;'>
+            {make_li(w1_points)}
+          </ul>
+        </div>""", unsafe_allow_html=True)
+    with wc2:
+        st.markdown(f"""
+        <div class='weak-card'>
+          <div class='weak-header'>
+            <div class='warn-icon'>⚠️</div>
+            <div>
+              <div style='font-size:10px;font-weight:600;color:#E8673A;
+                          text-transform:uppercase;letter-spacing:.6px;
+                          margin-bottom:2px;'>Key Weakness</div>
+              <div class='weak-title'>{w2_title}</div>
+            </div>
+          </div>
+          <ul style='margin:0;padding-left:18px;color:#555;
+                     font-size:13px;line-height:1.75;'>
+            {make_li(w2_points)}
+          </ul>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
+
+    # ── Parse Primary Recommendation ─────────────────────
+    try:
+        r_data    = _json.loads(insights_rec) if insights_rec else {}
+        rec_title = r_data.get("title",       "Primary Recommendation")
+        rec_desc  = r_data.get("description", "")
+    except Exception:
+        rec_title, rec_desc = "Primary Recommendation", ""
+
+    if rec_desc:
+        st.markdown(f"""
+        <div class='rec-primary'>
+          <div class='star-bg'>★</div>
+          <div>
+            <div class='rec-primary-title'>{rec_title}</div>
+            <p style='margin:0;color:#555;font-size:13px;line-height:1.75;'>
+              {rec_desc}
+            </p>
+          </div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
+
+    # ── Parse & Render Recommendation Details ────────────
+    try:
+        rd_data  = _json.loads(insights_recdet) if insights_recdet else {}
+        rd_items = rd_data.get("items", [])
+    except Exception:
+        rd_items = []
+
+    if rd_items:
+        # Build each card as a separate st.markdown call — avoids the black box bug
+        st.markdown("""
+        <div style='background:#F7F4F1;border-radius:12px;padding:22px 24px;'>
+          <div style='font-size:14px;font-weight:700;color:#333;
+                      margin-bottom:16px;display:flex;align-items:center;gap:8px;'>
+            <span style='color:#E8673A;font-size:16px;'>★</span>
+            Recommendation Details
+          </div>
+        </div>""", unsafe_allow_html=True)
+
+        for i, item in enumerate(rd_items):
+            if i > 0:
+                st.markdown(
+                    "<div style='color:#E8673A;font-size:16px;"
+                    "padding-left:18px;margin:2px 0 4px;'>↓</div>",
+                    unsafe_allow_html=True)
+            bullets = "".join(
+                f"<li style='margin-bottom:4px;'>{p}</li>"
+                for p in item.get("points", [])
+            )
+            st.markdown(f"""
+            <div style='background:white;border-radius:10px;padding:14px 20px;
+                        border-left:4px solid #E8673A;margin-bottom:4px;'>
+              <div style='font-size:13px;font-weight:700;color:#C4512A;
+                          margin-bottom:8px;'>
+                {i+1} · {item.get("title","")}
+              </div>
+              <ul style='margin:0;padding-left:18px;color:#555;
+                         font-size:12.5px;line-height:1.72;'>
+                {bullets}
+              </ul>
+            </div>""", unsafe_allow_html=True)
+
+st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
 st.markdown("<div style='font-size:15px;font-weight:600;color:#333;margin-bottom:4px;'>Summary</div>",
             unsafe_allow_html=True)
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
