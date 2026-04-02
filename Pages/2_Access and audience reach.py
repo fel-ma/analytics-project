@@ -45,21 +45,77 @@ st.markdown(f"""
 
 # ── Helpers ──────────────────────────────────────────────
 def build_context(df):
-    total = df["Audience_n"].sum()
-    buf = [f"Monkey Baa Audience 2021-2025 | {len(df)} rows | Total: {int(total):,}"]
-    buf.append("\nBY YEAR:")
-    for y, v in df.groupby("Year")["Audience_n"].sum().items():
-        buf.append(f"  {int(y)}: {int(v):,}")
-    buf.append("\nBY STATE:")
-    for s, v in df.groupby("State")["Audience_n"].sum().sort_values(ascending=False).items():
-        buf.append(f"  {s}: {int(v):,} ({v/total*100:.1f}%)")
-    buf.append("\nREGION SPLIT:")
+    total     = df["Audience_n"].sum()
+    total_ev  = pd.to_numeric(df["# of events"], errors="coerce").sum()
+    total_v   = len(df)
+
+    buf = [
+        "=== MONKEY BAA THEATRE — AUDIENCE DATA 2021-2025 ===",
+        f"Total young people reached: {int(total):,}",
+        f"Total performances delivered: {int(total_ev):,}",
+        f"Total venue visits: {total_v}",
+        f"States/territories covered: {df['State'].nunique()} of 8",
+        "",
+        "THEORY OF CHANGE CONTEXT:",
+        "Monkey Baa's mission is to expand access to live theatre for young people,",
+        "especially those facing geographic, financial or social barriers.",
+        "Key outputs tracked: # performances, # regional/remote venues,",
+        "# young people attending, # communities reached.",
+        "Goal: equity in cultural access across Australia.",
+    ]
+
+    # Year-on-year with growth rates
+    buf.append("\nAUDIENCE BY YEAR (with growth):")
+    yearly = df.groupby("Year")["Audience_n"].sum()
+    yearly_ev = df.groupby("Year").apply(lambda x: pd.to_numeric(x["# of events"], errors="coerce").sum())
+    prev = None
+    for y, v in yearly.items():
+        ev = int(yearly_ev[y])
+        if prev:
+            growth = (v - prev[1]) / prev[1] * 100
+            buf.append(f"  {int(y)}: {int(v):,} young people | {ev} performances | growth: {growth:+.0f}% vs {int(prev[0])}")
+        else:
+            buf.append(f"  {int(y)}: {int(v):,} young people | {ev} performances")
+        prev = (y, v)
+
+    # State with full context
+    buf.append(f"\nAUDIENCE BY STATE (of {int(total):,} total):")
+    state_aud = df.groupby("State")["Audience_n"].sum().sort_values(ascending=False)
+    state_ev  = df.groupby("State").apply(lambda x: pd.to_numeric(x["# of events"], errors="coerce").sum())
+    for s, v in state_aud.items():
+        buf.append(f"  {s}: {int(v):,} ({v/total*100:.1f}% of {int(total):,}) | {int(state_ev[s])} performances")
+
+    # Region with full context — ToC critical metric
+    buf.append(f"\nGEOGRAPHIC REACH — ToC metric (of {int(total):,} total audience):")
     for r, v in df.groupby("Regional II")["Audience_n"].sum().items():
-        buf.append(f"  {r}: {int(v):,} ({v/total*100:.1f}%)")
-    buf.append(f"\nTOP STATE: {df.groupby('State')['Audience_n'].sum().idxmax()}")
-    reg = df[df["Regional II"]=="Regional"]["Audience_n"].sum()/total*100
-    rem = df[df["Regional II"]=="Remote"]["Audience_n"].sum()/total*100
-    buf.append(f"REGIONAL%: {reg:.1f} | REMOTE%: {rem:.1f}")
+        ev  = pd.to_numeric(df[df["Regional II"]==r]["# of events"], errors="coerce").sum()
+        ven = len(df[df["Regional II"]==r])
+        buf.append(f"  {r}: {int(v):,} young people ({v/total*100:.1f}% of {int(total):,}) | {int(ev)} performances | {ven} venues")
+
+    # School vs community — ToC access indicator
+    buf.append(f"\nACCESS TYPE — school vs community (of {int(total):,} total):")
+    for s, v in df.groupby("school")["Audience_n"].sum().items():
+        ev = pd.to_numeric(df[df["school"]==s]["# of events"], errors="coerce").sum()
+        buf.append(f"  {s}: {int(v):,} young people ({v/total*100:.1f}% of {int(total):,}) | {int(ev)} performances")
+
+    # Event types
+    buf.append(f"\nEVENT TYPES (of {int(total_ev):,} total performances):")
+    for t, v in df.groupby("Type")["Audience_n"].sum().sort_values(ascending=False).items():
+        ev = pd.to_numeric(df[df["Type"]==t]["# of events"], errors="coerce").sum()
+        buf.append(f"  {t}: {int(v):,} young people | {int(ev)} performances ({ev/total_ev*100:.1f}% of all performances)")
+
+    # Gaps — explicit for AI
+    buf.append("\nKEY GAPS (ToC access barriers):")
+    remote_v = int(df[df["Regional II"]=="Remote"]["Audience_n"].sum())
+    remote_pct = remote_v / total * 100
+    school_v = int(df[df["school"]=="School"]["Audience_n"].sum())
+    school_pct = school_v / total * 100
+    low_states = ["TAS", "SA", "NT", "ACT"]
+    low_total = int(state_aud[low_states].sum())
+    buf.append(f"  Remote reach: only {remote_v:,} young people ({remote_pct:.1f}% of {int(total):,}) — critical gap")
+    buf.append(f"  School engagement: only {school_v:,} young people ({school_pct:.1f}% of {int(total):,}) via schools")
+    buf.append(f"  Low-coverage states (TAS+SA+NT+ACT): {low_total:,} combined ({low_total/total*100:.1f}% of {int(total):,})")
+
     return "\n".join(buf)
 
 def call_ai(api_key, model, system_prompt, context):
@@ -67,7 +123,7 @@ def call_ai(api_key, model, system_prompt, context):
         model=model,
         messages=[{"role":"system","content":system_prompt},
                   {"role":"user","content":f"Data:\n{context}"}],
-        temperature=0.3, max_tokens=500,
+        temperature=0.3, max_tokens=800,
     )
     return r.choices[0].message.content.strip()
 
@@ -107,20 +163,34 @@ if df is None:
     st.stop()
 
 # ── KPIs ─────────────────────────────────────────────────
-total_audience = int(df["Audience_n"].sum())
-top_state      = df.groupby("State")["Audience_n"].sum().idxmax()
-regional_pct   = df[df["Regional II"]=="Regional"]["Audience_n"].sum() / df["Audience_n"].sum() * 100
+total_audience  = int(df["Audience_n"].sum())
+total_events    = int(pd.to_numeric(df["# of events"], errors="coerce").sum())
+top_state       = df.groupby("State")["Audience_n"].sum().idxmax()
+top_state_n     = int(df.groupby("State")["Audience_n"].sum().max())
+regional_n      = int(df[df["Regional II"]=="Regional"]["Audience_n"].sum())
+regional_pct    = regional_n / df["Audience_n"].sum() * 100
+remote_n        = int(df[df["Regional II"]=="Remote"]["Audience_n"].sum())
+remote_pct      = remote_n / df["Audience_n"].sum() * 100
 
 k1, k2, k3 = st.columns(3)
-for col, label, value in [
-    (k1, "Total Audience",       f"{total_audience:,}"),
-    (k2, "% Regional Audience",  f"{regional_pct:.0f}%"),
-    (k3, "Top Performing State", top_state),
-]:
+kpi_items = [
+    (k1, "Young People Reached",
+     f"{total_audience:,}",
+     f"across {total_events:,} performances"),
+    (k2, "% Regional Audience",
+     f"{regional_pct:.0f}%",
+     f"{regional_n:,} of {total_audience:,}"),
+    (k3, "Top Performing State",
+     top_state,
+     f"{top_state_n:,} young people"),
+]
+for col, label, value, sub in kpi_items:
     with col:
         st.markdown(f"""<div class='kpi-card'>
           <div class='kpi-label'>{label}</div>
-          <div class='kpi-value'>{value}</div></div>""", unsafe_allow_html=True)
+          <div class='kpi-value'>{value}</div>
+          <div style='font-size:11px;opacity:.82;margin-top:3px;'>{sub}</div>
+        </div>""", unsafe_allow_html=True)
 
 st.markdown("<div style='margin-top:10px'></div>", unsafe_allow_html=True)
 
@@ -128,6 +198,7 @@ st.markdown("<div style='margin-top:10px'></div>", unsafe_allow_html=True)
 run              = st.button("🚀 Generate AI Insights", type="primary")
 context          = build_context(df)
 insights_main    = st.session_state.get("ar_main",      None)
+insights_states  = st.session_state.get("ar_states",    None)
 insights_region  = st.session_state.get("ar_region",    None)
 insights_summary = st.session_state.get("ar_summary",   None)
 insights_weak    = st.session_state.get("ar_weak",      None)
@@ -141,81 +212,272 @@ if run:
     with st.spinner("Generating insights…"):
         try:
             insights_main = call_ai(api_key, model,
-                "Return exactly 4 bullet points (starting with •) on: national reach, "
-                "year-on-year trends, growth patterns, underserved opportunities. "
-                "No headers, no markdown.", context)
+                """You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change goal: EXPAND ACCESS to live theatre for young people,
+especially those facing geographic, financial or social barriers.
+Key output metrics: # performances delivered, # young people attending year-on-year.
+
+You are writing insights for the AUDIENCE TREND OVER TIME chart (2021-2025).
+Focus EXCLUSIVELY on temporal patterns — growth, peaks, drops, and what they mean
+for the mission of expanding access.
+
+Return exactly 4 bullet points (starting with •) that:
+1. Describe the overall 2021-2025 trajectory: total reach and scale of growth
+   (use exact numbers: "from 20,029 in 2021 to X in 2025")
+2. Identify the peak year with exact numbers and what drove that expansion of access
+3. Flag any year with decline or stagnation — what it means for continuity of access
+4. Connect the trend to the Theory of Change: is the program on track to embed
+   arts access into the lives of more young Australians each year?
+
+RULE: Every % must include base — write "X% (N of 351,772 young people)".
+No headers. No markdown. Start each point with •.""",
+                context)
 
             insights_region = call_ai(api_key, model,
-                "Return exactly 4 bullet points (starting with •) on: Metro vs Regional vs Remote "
-                "balance, geographic inclusiveness, underrepresented regions, one recommendation. "
-                "No headers, no markdown.", context)
+                """You are an equity analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change states: "There is greater equity in cultural access across Australia.
+Our focus on removing barriers ensures young people from communities experiencing entrenched
+disadvantage gain equal opportunities to engage in the arts."
 
+Analyse the geographic distribution data and return exactly 4 bullet points (starting with •) that:
+1. Describe the Metro vs Regional vs Remote split — what it means for equity of access
+   (always write "X% (N of 351,772 young people)")
+2. Identify which region type most aligns with the Theory of Change mission and why
+3. Name the most underserved geographic segment with exact numbers
+4. Give one specific recommendation to improve geographic equity, referencing the data
+
+CRITICAL FORMAT RULE: Every percentage MUST include the base number.
+Write "0.9% (3,203 of 351,772 young people)" NOT just "0.9%".
+No headers. No markdown. Start each point with •.""",
+                context)
+
+            # ── Build full page synthesis for summary ──
+            page_synthesis = f"""
+=== RAW DATA CONTEXT ===
+{context}
+
+=== TREND INSIGHTS (line chart) ===
+{insights_main}
+
+=== STATE TABLE INSIGHTS ===
+{insights_states}
+
+=== GEOGRAPHIC EQUITY INSIGHTS (pie chart) ===
+{insights_region}
+
+=== KEY WEAKNESSES IDENTIFIED ===
+{insights_weak}
+
+=== PRIMARY RECOMMENDATION ===
+{insights_rec}
+
+=== DETAILED RECOMMENDATIONS ===
+{insights_recdet}
+"""
             insights_summary = call_ai(api_key, model,
-                "Write one paragraph (4-5 sentences) for a board report covering: "
-                "overall performance 2021-2025, total audience and top state, "
-                "regional/remote reach, one strategic recommendation. Professional tone.", context)
+                """You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
+Access & Audience Reach report page. This summary appears at the bottom of the report
+and must synthesise ALL findings already generated on the page — it is not just a
+data summary, it is a strategic conclusion.
+
+Monkey Baa's Theory of Change mission:
+"To uplift young Australians by embedding the arts into their formative years.
+To ensure all young people have equitable access to creative experiences
+that shape their identity, confidence, and connection to others."
+
+You have been given: the raw data, the trend insights, the state breakdown insights,
+the geographic equity insights, the weaknesses, and the recommendations.
+
+Write ONE cohesive paragraph of 6-7 sentences that:
+1. Opens with the headline achievement — total young people reached and
+   what this means for the mission (use exact numbers)
+2. Highlights the key trend story from the line chart (growth trajectory)
+3. Addresses the geographic equity picture — which communities were served well
+   and which were left behind (use "X% (N of 351,772)" format for all percentages)
+4. Connects the identified weaknesses to the Theory of Change barriers
+5. Bridges into the recommendations — summarise the strategic direction in one sentence
+6. Closes with a forward-looking statement grounded in the Theory of Change horizon goal:
+   "greater equity in cultural access across Australia"
+
+This paragraph must feel like a CONCLUSION that a board member reads last —
+it should land with weight, not repeat bullet points.
+Professional, warm, purposeful tone. No headers. No bullet points.""",
+                page_synthesis)
 
             st.session_state["ar_main"]    = insights_main
             st.session_state["ar_region"]  = insights_region
-            st.session_state["ar_summary"] = insights_summary
+
+            insights_states = call_ai(api_key, model,
+                """You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change goal: reach young people across ALL of Australia,
+with particular attention to states where access to live theatre is most limited.
+Key output metric: # communities reached, # states covered.
+
+You are providing insights for the STATE BREAKDOWN TABLE — focus exclusively on
+which states are performing well vs underserved, and what it means for equitable access.
+
+Return exactly 4 bullet points (starting with •) that:
+1. Name the top 2 states by audience with exact numbers (X of 351,772) and what
+   percentage of the national mission they represent
+2. Identify the 2-3 most underserved states with their exact numbers
+   (e.g. "SA: 4,660 young people — only 1.3% of 351,772") and what barrier this represents
+3. Compare the number of performances (events) vs audience size between states —
+   are some states getting more shows but fewer young people or vice versa?
+4. Suggest which state should be prioritised next to advance geographic equity,
+   with a specific rationale from the data
+
+CRITICAL FORMAT RULE: Every percentage MUST include the base number.
+Write "51.3% (180,569 of 351,772 young people)" NOT just "51.3%".
+No headers. No markdown. Start each point with •.""",
+                context)
+            st.session_state["ar_states"] = insights_states
 
             # ── Weaknesses ──
             insights_weak = call_ai(api_key, model,
-                """You are a strategic analyst for an Australian children's theatre company.
-Based on the audience dataset, identify exactly 2 weaknesses in the touring program's reach and access.
-Return ONLY this JSON structure, no markdown, no preamble:
+                """You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change identifies these barriers to access:
+"Young people miss out due to geographic, financial or social barriers.
+Limited exposure to live performing arts restricts opportunities to engage, imagine, and grow."
+
+Based on the audience data, identify exactly 2 weaknesses that directly undermine
+the Theory of Change mission.
+
+Return ONLY this JSON, no markdown, no preamble:
 {
   "weakness_1": {
-    "title": "Weakness 1 title (5-7 words)",
-    "points": ["point 1", "point 2", "point 3"]
+    "title": "Weakness title (5-7 words, specific to data)",
+    "points": [
+      "Finding with exact number (X of 351,772 young people / X%)",
+      "Why this undermines the Theory of Change access goal",
+      "Which communities are most affected"
+    ]
   },
   "weakness_2": {
-    "title": "Weakness 2 title (5-7 words)",
-    "points": ["point 1", "point 2", "point 3"]
+    "title": "Weakness title (5-7 words, specific to data)",
+    "points": [
+      "Finding with exact number (X of 351,772 young people / X%)",
+      "Why this represents a barrier as defined in the Theory of Change",
+      "Risk to long-term mission if not addressed"
+    ]
   }
 }
-Base weaknesses on real data patterns: Remote audience %, state coverage gaps, school vs general public split, year-on-year trends.""",
+Every percentage MUST include the base: write "0.9% (3,203 of 351,772)" not just "0.9%".""",
                 context)
+            st.session_state["ar_weak"] = insights_weak
 
             # ── Primary Recommendation ──
             insights_rec = call_ai(api_key, model,
-                """You are a strategic analyst for an Australian children's theatre company.
-Based on the audience dataset, write ONE primary strategic recommendation to address the access and reach gaps.
-Return ONLY this JSON structure, no markdown, no preamble:
+                """You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change strategy: "Expand access to theatre for more young people.
+We provide targeted access to theatre to young people in need via Theatre Unlimited.
+We partner with local organisations to connect with young people nationally."
+
+Based on the audience data gaps, write ONE primary strategic recommendation that
+directly advances the Theory of Change access strategy.
+
+Return ONLY this JSON, no markdown, no preamble:
 {
-  "title": "Primary Recommendation title (5-8 words)",
-  "description": "2-3 sentence strategic recommendation paragraph addressing the specific data gaps found"
-}
-Be specific and data-driven. Reference actual patterns from the data.""",
+  "title": "Recommendation title (5-8 words, action-oriented)",
+  "description": "3-4 sentence recommendation that: (1) names the specific data gap
+  with numbers (always X of 351,772 format), (2) links it to the Theory of Change
+  strategy, (3) proposes a concrete action, (4) states the expected outcome
+  in terms of young people reached."
+}""",
                 context)
+            st.session_state["ar_rec"] = insights_rec
 
             # ── Recommendation Details ──
             insights_recdet = call_ai(api_key, model,
-                """You are a strategic analyst for an Australian children's theatre company.
-Based on the audience dataset, provide exactly 3 detailed actionable recommendations.
-Return ONLY this JSON structure, no markdown, no preamble:
+                """You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change activities include:
+- Touring extensively to provide regular theatre experiences across regional and urban Australia
+- Providing targeted access via Theatre Unlimited to young people in need
+- Partnering with local organisations to connect with young people nationally
+- Developing new Australian works consulted with young people and schools
+
+Based on the audience data, provide exactly 3 detailed actionable recommendations
+that each directly address a Theory of Change activity or output gap.
+
+Return ONLY this JSON, no markdown, no preamble:
 {
   "items": [
     {
-      "title": "Action title (5-8 words)",
-      "points": ["specific action 1", "specific action 2"]
+      "title": "Action title (5-8 words, ties to ToC activity)",
+      "points": [
+        "Specific action with target number (e.g. increase Remote from 3,203 to X)",
+        "How this advances the Theory of Change output metric"
+      ]
     },
     {
-      "title": "Action title (5-8 words)",
-      "points": ["specific action 1", "specific action 2"]
+      "title": "Action title (5-8 words, ties to ToC activity)",
+      "points": [
+        "Specific action with current baseline (e.g. school reach is 1.3% of 351,772)",
+        "How this addresses the Theory of Change access barrier"
+      ]
     },
     {
-      "title": "Action title (5-8 words)",
-      "points": ["specific action 1", "specific action 2"]
+      "title": "Action title (5-8 words, ties to ToC activity)",
+      "points": [
+        "Specific action targeting underserved states (TAS+SA+NT+ACT = 2.9% combined)",
+        "Partnership or programme to address Theory of Change equity goal"
+      ]
     }
   ]
 }
-Base each recommendation on actual data gaps: Remote = very low %, school engagement, state coverage.""",
+Every percentage must include the base number.""",
                 context)
+            st.session_state["ar_recdet"] = insights_recdet
 
-            st.session_state["ar_weak"]    = insights_weak
-            st.session_state["ar_rec"]     = insights_rec
-            st.session_state["ar_recdet"]  = insights_recdet
+            # ── Summary — synthesises ALL page content ──
+            page_synthesis = f"""
+=== RAW DATA ===
+{context}
+
+=== TREND INSIGHTS (line chart 2021-2025) ===
+{insights_main}
+
+=== STATE TABLE INSIGHTS ===
+{insights_states}
+
+=== GEOGRAPHIC EQUITY INSIGHTS (Metro/Regional/Remote pie chart) ===
+{insights_region}
+
+=== KEY WEAKNESSES IDENTIFIED ===
+{insights_weak}
+
+=== PRIMARY RECOMMENDATION ===
+{insights_rec}
+
+=== DETAILED RECOMMENDATIONS ===
+{insights_recdet}
+"""
+            insights_summary = call_ai(api_key, model,
+                """You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
+Access & Audience Reach report. This paragraph appears at the bottom of the full report
+and must synthesise ALL findings from the page — trends, state breakdown, geographic
+equity, weaknesses, and recommendations. It is a strategic conclusion, not a data recap.
+
+Monkey Baa's Theory of Change mission:
+"To uplift young Australians by embedding the arts into their formative years.
+To ensure all young people have equitable access to creative experiences
+that shape their identity, confidence, and connection to others."
+
+Write ONE cohesive paragraph of 6-7 sentences that:
+1. Opens with the headline achievement — total young people reached and what it
+   means for the Theory of Change mission (use exact numbers)
+2. Captures the key trend story: growth trajectory and peak year
+3. Addresses geographic equity — who was reached well and who was left behind
+   (use "X% (N of 351,772)" for all percentages)
+4. Names the most critical weakness and links it to a specific Theory of Change barrier
+5. Summarises the strategic direction from the recommendations in one sentence
+6. Closes with a forward-looking statement tied to the Theory of Change horizon:
+   "greater equity in cultural access across Australia"
+
+This must land with weight as the final word a board member reads — not a bullet list
+summary but a purposeful, board-quality conclusion.
+Professional, warm tone. No headers. No bullet points.""",
+                page_synthesis)
+            st.session_state["ar_summary"] = insights_summary
         except Exception as e:
             st.error(f"API error: {e}")
             st.stop()
@@ -288,22 +550,25 @@ with c2:
                 unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ── Section 2: insights left, table right (with title + orange header) ──
+# ── Section 2: insights left, table right ────────────────
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 c3, c4 = st.columns([5, 5])
 with c3:
-    st.markdown(bullets_html(insights_main) if insights_main
+    st.markdown(bullets_html(insights_states) if insights_states
                 else placeholder("Insights will appear here after generation."),
                 unsafe_allow_html=True)
 with c4:
     sdf = df.groupby("State")["Audience_n"].sum().sort_values(ascending=False).reset_index()
     sdf.columns = ["State","Audience"]
     sdf["Audience"] = sdf["Audience"].round(0).astype(int)
-    sdf["%"] = (sdf["Audience"]/sdf["Audience"].sum()*100).round(1).astype(str)+"%"
+    grand_total = sdf["Audience"].sum()
+    sdf["% of total"] = sdf["Audience"].apply(
+        lambda v: f"{v/grand_total*100:.1f}% of {grand_total:,}"
+    )
     rows = "".join(
         f"<tr><td style='text-align:center;'>{r['State']}</td>"
         f"<td style='text-align:center;'>{r['Audience']:,}</td>"
-        f"<td style='text-align:center;'>{r['%']}</td></tr>"
+        f"<td style='text-align:center;font-size:11px;color:#777;'>{r['% of total']}</td></tr>"
         for _, r in sdf.iterrows()
     )
     st.markdown(f"""
@@ -319,7 +584,7 @@ with c4:
         <th style='background-color:{ORANGE};color:white;padding:7px 10px;
                    text-align:center;border:1px solid #c85a2a;'>Audience</th>
         <th style='background-color:{ORANGE};color:white;padding:7px 10px;
-                   text-align:center;border:1px solid #c85a2a;'>%</th>
+                   text-align:center;border:1px solid #c85a2a;'>% of total</th>
       </tr></thead>
       <tbody>{rows}</tbody>
     </table>
