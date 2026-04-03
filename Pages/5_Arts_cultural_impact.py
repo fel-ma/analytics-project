@@ -332,6 +332,7 @@ st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
 # ─────────────────────────────────────────────────────────
 run            = st.button("🚀 Generate AI Insights", type="primary")
 ai_interpret   = st.session_state.get("aci_interpret",  None)
+ai_sentiment   = st.session_state.get("aci_sentiment",  None)
 ai_weak        = st.session_state.get("aci_weak",       None)
 ai_rec         = st.session_state.get("aci_rec",        None)
 ai_recdet      = st.session_state.get("aci_recdet",     None)
@@ -343,7 +344,7 @@ if run:
         st.stop()
     with st.spinner("Generating cultural impact insights…"):
         try:
-            # 1 — Insight Interpretation
+            # 1 — Insight Interpretation (5 bullets)
             ai_interpret = call_ai(api_key, model,
                 f"""You are a cultural impact analyst for Monkey Baa Theatre, Australia.
 Monkey Baa's Theory of Change — Cultural Outcomes (Spark):
@@ -353,56 +354,122 @@ Cultural Outcomes (Growth):
 "Young people develop a growing appreciation for theatre and the arts."
 "Young people build increased cultural literacy and openness."
 
-You are writing the INSIGHT INTERPRETATION section — this must interpret WHAT THE KPIs MEAN,
-not repeat their numbers. Go beyond the data: explain the cultural significance.
+You are writing the INSIGHT INTERPRETATION section — interpret WHAT THE KPIs MEAN
+culturally. Do NOT repeat numbers mechanically — explain the significance.
 
-Key KPIs to interpret (do NOT repeat these as bullets — interpret their meaning):
+Key data points to interpret:
 - {m['cultural_learning_pct']}% ({m['cultural_learning_n']} of {n}) rated Aesthetic Experience ≥7
 - {m['confidence_pct']}% ({m['confidence_n']} of {n}) made connections to their own life
 - {m['aus_stories_pct']}% ({m['aus_stories_n']} of {n}) already knew the Australian story
+- 92% (592 of {n}) felt Happy | 39% (249 of {n}) felt Curious
+- Only 5% (32 of {n}) became more aware of different cultures/viewpoints
 
-Return exactly 5 bullet points (starting with •) that:
-1. Explain what the high aesthetic experience score means for cultural engagement (Spark outcome)
-2. Interpret what the confidence/self-expression data reveals about identity development (Growth outcome)
-3. Analyse what prior story knowledge tells us about Australian cultural reach and representation
-4. Connect the emotional engagement data (92% Happy, 39% Curious) to the Theory of Change goal
-   of cultivating lifelong arts engagers
-5. Identify the one cultural outcome gap — what is NOT being captured yet in the data
+Return exactly 5 bullet points (starting with •). Each bullet must:
+- Start with a bold label in this format: **Label:** then the insight text
+- Be 1-2 sentences that explain cultural significance, not just restate numbers
+- Reference a Theory of Change outcome explicitly
 
-RULE: Every % must show base — write "X% (N of {n})". No headers. No markdown. Start with •.""",
+Structure:
+• **Strong Cultural Reach:** [interpret aesthetic experience score culturally]
+• **Identity & Belonging:** [interpret connections to own life + belonging score]
+• **Australian Story Recognition:** [interpret prior knowledge culturally]
+• **Emotional Engagement:** [interpret Happy + Curious emotions as cultural outcomes]
+• **Cultural Gap:** [identify what is NOT yet being achieved — use the 5% stat]
+
+RULE: Every % must show base — write "X% (N of {n})". Start with •.""",
                 ctx)
 
-            # 2 — Weakness
+            # 2 — AI-Generated Sentiment Table
+            ai_sentiment = call_ai(api_key, model,
+                f"""You are a cultural impact analyst for Monkey Baa Theatre, Australia.
+Based on the survey data, create a Sentiment Analysis table for Cultural Outcomes.
+
+Return ONLY this JSON, no markdown, no preamble:
+{{
+  "rows": [
+    {{
+      "category": "Cultural Learning & Awareness",
+      "description": "1-sentence description of what this measures culturally",
+      "count": {m['cat_cultural_learning']},
+      "pct": {round(m['cat_cultural_learning']/n*100)},
+      "highlight": "top"
+    }},
+    {{
+      "category": "Confidence & Self-Expression",
+      "description": "1-sentence description of what this measures culturally",
+      "count": {m['cat_confidence']},
+      "pct": {round(m['cat_confidence']/n*100)},
+      "highlight": "normal"
+    }},
+    {{
+      "category": "Emotional & Social Wellbeing",
+      "description": "1-sentence description of what this measures culturally",
+      "count": {m['cat_emotional']},
+      "pct": {round(m['cat_emotional']/n*100)},
+      "highlight": "normal"
+    }},
+    {{
+      "category": "Curiosity & Critical Thinking",
+      "description": "1-sentence description of what this measures culturally",
+      "count": {m['cat_curiosity']},
+      "pct": {round(m['cat_curiosity']/n*100)},
+      "highlight": "normal"
+    }},
+    {{
+      "category": "General Positive Engagement",
+      "description": "1-sentence description of what this measures culturally",
+      "count": {m['cat_positive']},
+      "pct": {round(m['cat_positive']/n*100)},
+      "highlight": "low"
+    }}
+  ],
+  "insight": "1-2 sentence interpretation of what this table reveals about cultural outcomes overall"
+}}
+The descriptions must explain CULTURAL significance, not just restate what was measured.
+Total responses = {n}.""",
+                ctx)
+
+            # 3 — TWO Weaknesses
             ai_weak = call_ai(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
 Theory of Change cultural gap: "Young people do not see their diverse experiences
 reflected in stories. A lack of representation diminishes their sense of belonging."
 
-Based on the cultural impact survey data, identify ONE key weakness in cultural outcomes.
+Based on the cultural impact survey data, identify exactly 2 key weaknesses.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
-  "title": "Weakness title (5-7 words, data-specific)",
-  "points": [
-    "Specific finding with number (X of {n} / X%)",
-    "Why this undermines the Theory of Change cultural outcomes goal",
-    "Which audience segment or cultural outcome is most at risk"
-  ]
+  "weakness_1": {{
+    "title": "Weakness title (5-7 words, data-specific)",
+    "points": [
+      "Specific finding with number (X of {n} / X% of {n})",
+      "Why this undermines the Theory of Change cultural outcomes goal",
+      "Which audience segment or cultural outcome is most at risk"
+    ]
+  }},
+  "weakness_2": {{
+    "title": "Weakness title (5-7 words, different focus from weakness 1)",
+    "points": [
+      "Specific finding with number (X of {n} / X% of {n})",
+      "Why this represents a barrier as defined in the Theory of Change",
+      "Risk to long-term cultural mission if not addressed"
+    ]
+  }}
 }}
-Key gap to reference: only 5% (32 of {n}) became more aware of different cultures/viewpoints.
-Only {m['confidence_pct']}% ({m['confidence_n']} of {n}) made explicit connections to their own life.
+Key gaps: only 5% (32 of {n}) became more aware of different cultures/viewpoints.
+Only {m['confidence_pct']}% ({m['confidence_n']} of {n}) made explicit life connections.
+Mean Creativity {m['cr_mean']}/10 and Imagination {m['im_mean']}/10 — room for improvement.
 Every % must include the base number.""",
                 ctx)
 
-            # 3 — Primary Recommendation
+            # 4 — Primary Recommendation
             ai_rec = call_ai(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
-Theory of Change strategy: "We create theatre experiences that support emotional growth.
+Theory of Change cultural strategy: "We create theatre experiences that support emotional growth.
 We develop and present original Australian theatre that reflects the diversity of young audiences.
 We ensure our stories reflect a broad range of young people's lived experiences."
 
-Based on the cultural impact data gaps, write ONE primary strategic recommendation
-that directly advances the Theory of Change cultural strategy.
+Based on the cultural impact data gaps, write ONE primary strategic recommendation.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
@@ -414,7 +481,7 @@ Return ONLY this JSON, no markdown, no preamble:
 Every % must include the base number.""",
                 ctx)
 
-            # 4 — Recommendation Details
+            # 5 — THREE Recommendation Details
             ai_recdet = call_ai(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
 Theory of Change cultural activities:
@@ -423,31 +490,38 @@ Theory of Change cultural activities:
 - Making young people feel seen and respected as legitimate participants in cultural life
 - Building a generation of lifelong arts engagers
 
-Provide exactly 2 detailed actionable recommendations addressing the cultural impact gaps.
+Provide exactly 3 detailed actionable recommendations addressing cultural impact gaps.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
   "items": [
     {{
-      "title": "Action title (5-8 words, ties to ToC cultural activity)",
+      "title": "Embed Cultural Reflection Moments",
       "points": [
-        "Specific action with current baseline (e.g. only 5% (32 of {n}) became culturally aware)",
-        "How this advances the Theory of Change cultural outcome"
+        "Specific action with current baseline (only 5% (32 of {n}) became culturally aware)",
+        "How guided prompts during/after performances make cultural learning intentional"
       ]
     }},
     {{
-      "title": "Action title (5-8 words, ties to ToC cultural activity)",
+      "title": "Reinforce Through Creative Expression",
       "points": [
-        "Specific action targeting confidence/expression gap ({m['confidence_pct']}% of {n})",
-        "How this makes cultural outcomes visible and measurable"
+        "Activities like role-play, drawing, storytelling linked to current gap ({m['confidence_pct']}% of {n} made life connections)",
+        "How this strengthens confidence, self-expression and makes cultural outcomes visible"
+      ]
+    }},
+    {{
+      "title": "Strengthen Australian Story Representation",
+      "points": [
+        "Build on {m['aus_stories_pct']}% ({m['aus_stories_n']} of {n}) prior story recognition — deepen cultural diversity",
+        "How this advances the Theory of Change goal of enriched and diversified Australian storytelling"
       ]
     }}
   ]
 }}
-Every % must include the base number.""",
+Rewrite each point in your own words — use the baseline numbers but make the language strategic.""",
                 ctx)
 
-            # 5 — Summary (synthesises everything)
+            # 6 — Summary (synthesises everything — called last)
             page_synthesis = f"""
 === RAW DATA ===
 {ctx}
@@ -455,19 +529,22 @@ Every % must include the base number.""",
 === INSIGHT INTERPRETATION ===
 {ai_interpret}
 
-=== KEY WEAKNESS ===
+=== SENTIMENT TABLE INSIGHT ===
+{ai_sentiment}
+
+=== KEY WEAKNESSES (2) ===
 {ai_weak}
 
 === PRIMARY RECOMMENDATION ===
 {ai_rec}
 
-=== RECOMMENDATION DETAILS ===
+=== RECOMMENDATION DETAILS (3) ===
 {ai_recdet}
 """
             ai_summary = call_ai(api_key, model,
                 f"""You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
 Arts & Cultural Impact report. It appears at the bottom and must synthesise ALL
-page findings — KPIs, insights, weakness, and recommendations — into a strategic conclusion.
+page findings into a strategic board-level conclusion.
 
 Monkey Baa's Theory of Change cultural mission:
 "Australian storytelling is enriched and diversified."
@@ -475,18 +552,18 @@ Monkey Baa's Theory of Change cultural mission:
 "Young people build increased cultural literacy and openness."
 
 Write ONE cohesive paragraph of 6-7 sentences that:
-1. Opens with the headline cultural achievement — aesthetic experience and story recognition
-   (use exact numbers: X% (N of {n}))
-2. Captures the emotional and social cultural impact (Happy, Curious, Belonging data)
-3. Addresses what the data reveals about Australian story reach and representation
-4. Names the most critical cultural gap and connects it to the Theory of Change barrier
-5. Bridges into the recommendations — what cultural shift is needed
+1. Opens with the headline cultural achievement (use exact numbers: X% (N of {n}))
+2. Captures the emotional and social cultural impact (Happy, Curious, Belonging)
+3. Addresses Australian story reach and representation data
+4. Names the most critical cultural gaps and links to Theory of Change barriers
+5. Summarises the strategic direction across the 3 recommendations in one sentence
 6. Closes with the Theory of Change horizon: "a generation of lifelong arts engagers"
 
-Board-quality conclusion — purposeful, warm, strategic. No headers. No bullet points.""",
+Board-quality conclusion. No headers. No bullet points.""",
                 page_synthesis, max_tokens=600)
 
             st.session_state["aci_interpret"] = ai_interpret
+            st.session_state["aci_sentiment"] = ai_sentiment
             st.session_state["aci_weak"]      = ai_weak
             st.session_state["aci_rec"]       = ai_rec
             st.session_state["aci_recdet"]    = ai_recdet
@@ -504,7 +581,20 @@ st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown("<div class='section-title'>Insight Interpretation</div>",
             unsafe_allow_html=True)
 if ai_interpret:
-    st.markdown(bullets_html(ai_interpret), unsafe_allow_html=True)
+    # Render bullets with bold label support
+    lines = [l.strip() for l in ai_interpret.split("\n") if l.strip()]
+    items = [l for l in lines if l.startswith("•") or l.startswith("-")] or lines
+    li_html = ""
+    for b in items:
+        text = b.lstrip("•- ").strip()
+        # Convert **Label:** to <strong>Label:</strong>
+        import re
+        text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+        li_html += f"<li style='margin-bottom:10px;'>{text}</li>"
+    st.markdown(
+        f"<div class='insight-box'><ul style='margin:0;padding-left:16px;'>"
+        f"{li_html}</ul></div>",
+        unsafe_allow_html=True)
 else:
     st.markdown(placeholder("Click <b>Generate AI Insights</b> to load interpretation."),
                 unsafe_allow_html=True)
@@ -512,91 +602,121 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────
-# SECTION 3 — Sentiment Analysis Table + Bar Chart
+# SECTION 3 — Sentiment Analysis Table (AI-generated) + Bar Chart
 # ─────────────────────────────────────────────────────────
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown("<div class='section-title'>Sentiment Analysis on Cultural Outcomes Impact</div>",
             unsafe_allow_html=True)
 
-categories = [
-    ("Cultural Learning & Awareness",  m["cat_cultural_learning"],  "green"),
-    ("Confidence & Self-Expression",   m["cat_confidence"],          "normal"),
-    ("Emotional & Social Wellbeing",   m["cat_emotional"],           "normal"),
-    ("Curiosity & Critical Thinking",  m["cat_curiosity"],           "normal"),
-    ("General Positive Engagement",    m["cat_positive"],            "normal"),
-]
-# Sort by count to find top and bottom
-sorted_cats = sorted(categories, key=lambda x: -x[1])
-top_name  = sorted_cats[0][0]
-low_name  = sorted_cats[-1][0]
+import json as _json_sent
+import re as _re
+
+# Parse AI sentiment or fall back to computed data
+sent_rows = None
+sent_insight = ""
+if ai_sentiment:
+    try:
+        sd = _json_sent.loads(ai_sentiment)
+        sent_rows    = sd.get("rows", [])
+        sent_insight = sd.get("insight", "")
+    except Exception:
+        sent_rows = None
+
+# Fallback rows if AI hasn't run or failed
+if not sent_rows:
+    sent_rows = [
+        {"category": "Cultural Learning & Awareness",  "description": "Became culturally aware, asked questions, or desired to learn more",         "count": m["cat_cultural_learning"], "pct": round(m["cat_cultural_learning"]/n*100), "highlight": "top"},
+        {"category": "Confidence & Self-Expression",   "description": "Rated Creativity or Imagination ≥7 — creative confidence indicators",        "count": m["cat_confidence"],         "pct": round(m["cat_confidence"]/n*100),         "highlight": "normal"},
+        {"category": "Emotional & Social Wellbeing",   "description": "Felt Happy during show or rated Belonging ≥7 — social connection outcomes",   "count": m["cat_emotional"],          "pct": round(m["cat_emotional"]/n*100),          "highlight": "normal"},
+        {"category": "Curiosity & Critical Thinking",  "description": "Felt Curious or made connections to their own life — reflective engagement",  "count": m["cat_curiosity"],          "pct": round(m["cat_curiosity"]/n*100),          "highlight": "normal"},
+        {"category": "General Positive Engagement",    "description": "Reported the young person liked the show a lot — baseline satisfaction",      "count": m["cat_positive"],           "pct": round(m["cat_positive"]/n*100),           "highlight": "low"},
+    ]
 
 col_table, col_chart = st.columns([5, 5])
 
 with col_table:
-    descriptions = {
-        "Cultural Learning & Awareness":
-            "Became culturally aware, asked questions, or desired to learn more",
-        "Confidence & Self-Expression":
-            "Rated Creativity or Imagination ≥7/10",
-        "Emotional & Social Wellbeing":
-            "Felt Happy during show or rated Belonging ≥7/10",
-        "Curiosity & Critical Thinking":
-            "Felt Curious or made connections to their own life",
-        "General Positive Engagement":
-            "Reported the young person liked the show a lot",
-    }
     rows_html = ""
-    for name, count, _ in categories:
-        pct   = round(count / n * 100)
-        desc  = descriptions.get(name, "")
-        css   = "top-row" if name == top_name else ("low-row" if name == low_name else "")
-        rows_html += f"""<tr class='{css}'>
-          <td><b>{name}</b></td>
-          <td style='font-size:11px;color:#777;'>{desc}</td>
-          <td><b>{pct}%</b><br><span style='font-size:10px;color:#aaa;'>{count} of {n}</span></td>
+    for row in sent_rows:
+        name  = row.get("category", "")
+        desc  = row.get("description", "")
+        count = row.get("count", 0)
+        pct   = row.get("pct", 0)
+        hl    = row.get("highlight", "normal")
+        if hl == "top":
+            bg = "#E8F5EE"; tc = "#2d6a4f"; fw = "600"
+        elif hl == "low":
+            bg = "#FFF8E1"; tc = "#7a5800"; fw = "500"
+        else:
+            bg = "white"; tc = GRAY_TEXT; fw = "400"
+        rows_html += f"""<tr style='background:{bg};'>
+          <td style='font-weight:{fw};color:{tc};padding:8px 12px;
+                     border-bottom:1px solid #eee;'>{name}</td>
+          <td style='font-size:11px;color:#777;padding:8px 12px;
+                     border-bottom:1px solid #eee;'>{desc}</td>
+          <td style='font-weight:600;color:{tc};padding:8px 12px;
+                     border-bottom:1px solid #eee;white-space:nowrap;'>
+            {pct}%<br>
+            <span style='font-size:10px;color:#aaa;font-weight:400;'>
+              {count} of {n}
+            </span>
+          </td>
         </tr>"""
-
     st.markdown(f"""
-    <table class='sent-table'>
+    <table style='width:100%;border-collapse:collapse;font-size:12.5px;'>
       <thead><tr>
-        <th>Category</th>
-        <th>Description</th>
-        <th>Share</th>
+        <th style='background:{ORANGE};color:white;padding:8px 12px;
+                   text-align:left;font-weight:600;'>Category</th>
+        <th style='background:{ORANGE};color:white;padding:8px 12px;
+                   text-align:left;font-weight:600;'>Cultural Significance</th>
+        <th style='background:{ORANGE};color:white;padding:8px 12px;
+                   text-align:left;font-weight:600;'>Share</th>
       </tr></thead>
       <tbody>{rows_html}</tbody>
     </table>""", unsafe_allow_html=True)
 
+    if sent_insight:
+        st.markdown(
+            f"<div style='margin-top:10px;font-size:12px;color:#777;"
+            f"font-style:italic;line-height:1.6;'>{sent_insight}</div>",
+            unsafe_allow_html=True)
+
 with col_chart:
-    names  = [c[0] for c in categories]
-    values = [round(c[1] / n * 100) for c in categories]
-    colors = [GREEN if c[0] == top_name else
-              YELLOW if c[0] == low_name else
-              "#F2B99B" for c in categories]
+    names_c  = [r.get("category","") for r in sent_rows]
+    values_c = [r.get("pct", 0) for r in sent_rows]
+    counts_c = [r.get("count",0) for r in sent_rows]
+    colors_c = [
+        GREEN  if r.get("highlight") == "top"  else
+        YELLOW if r.get("highlight") == "low"  else
+        "#F2B99B"
+        for r in sent_rows
+    ]
+    short_names = [nm[:22]+"…" if len(nm)>22 else nm for nm in names_c]
 
     fig = go.Figure(go.Bar(
-        x=values,
-        y=[n[:25]+"…" if len(n)>25 else n for n in names],
+        x=values_c, y=short_names,
         orientation="h",
-        marker=dict(color=colors, line=dict(color="white", width=0.5)),
-        text=[f"{v}%" for v in values],
+        marker=dict(color=colors_c, line=dict(color="white", width=0.5)),
+        text=[f"{v}%" for v in values_c],
         textposition="outside",
         textfont=dict(size=11, color="#333"),
-        hovertemplate="<b>%{y}</b><br>%{x}% (%{customdata} of " + str(n) + ")<extra></extra>",
-        customdata=[c[1] for c in categories],
+        hovertemplate="<b>%{y}</b><br>%{x}% (%{customdata} of "
+                      + str(n) + ")<extra></extra>",
+        customdata=counts_c,
     ))
     fig.update_layout(
         title=dict(text="Cultural Outcomes Distribution",
                    font=dict(size=13, color="#333", family="Arial"),
                    x=0.5, xanchor="center"),
-        height=280,
-        margin=dict(l=10, r=50, t=44, b=10),
+        height=290,
+        margin=dict(l=10, r=55, t=44, b=10),
         paper_bgcolor=WHITE, plot_bgcolor=WHITE,
         xaxis=dict(ticksuffix="%", tickfont=dict(size=10, color="#333"),
                    showgrid=True, gridcolor="#f0f0f0", zeroline=False),
         yaxis=dict(tickfont=dict(size=10, color="#333"), showgrid=False),
         hoverlabel=dict(bgcolor=ORANGE, font_color="white", font_size=11),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True,
+                    config={"displayModeBar": False})
 
 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -615,31 +735,58 @@ if not ai_weak and not ai_rec and not ai_recdet:
 else:
     import json as _json
 
-    # ── Weakness ────────────────────────────────────────
+    # ── TWO Weaknesses side by side ──────────────────────
     try:
         w = _json.loads(ai_weak) if ai_weak else {}
-        w_title  = w.get("title",  "Cultural Impact Weakness")
-        w_points = w.get("points", [])
+        w1_title  = w.get("weakness_1", {}).get("title",  "Key Weakness 1")
+        w1_points = w.get("weakness_1", {}).get("points", [])
+        w2_title  = w.get("weakness_2", {}).get("title",  "Key Weakness 2")
+        w2_points = w.get("weakness_2", {}).get("points", [])
     except Exception:
-        w_title, w_points = "Cultural Impact Weakness", []
+        w1_title, w1_points = "Key Weakness 1", []
+        w2_title, w2_points = "Key Weakness 2", []
 
-    li_w = "".join(f"<li style='margin-bottom:5px;'>{p}</li>" for p in w_points)
-    st.markdown(f"""
-    <div class='weak-card'>
-      <div class='weak-header'>
-        <div class='warn-icon'>⚠️</div>
-        <div>
-          <div style='font-size:10px;font-weight:600;color:{ORANGE};
-                      text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;'>
-            Key Weakness
+    def make_li(points):
+        return "".join(
+            f"<li style='margin-bottom:5px;'>{p}</li>" for p in points)
+
+    wc1, wc2 = st.columns(2)
+    with wc1:
+        st.markdown(f"""
+        <div class='weak-card'>
+          <div class='weak-header'>
+            <div class='warn-icon'>⚠️</div>
+            <div>
+              <div style='font-size:10px;font-weight:600;color:{ORANGE};
+                          text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;'>
+                Key Weakness
+              </div>
+              <div class='weak-title'>{w1_title}</div>
+            </div>
           </div>
-          <div class='weak-title'>{w_title}</div>
-        </div>
-      </div>
-      <ul style='margin:0;padding-left:18px;color:#555;font-size:13px;line-height:1.75;'>
-        {li_w}
-      </ul>
-    </div>""", unsafe_allow_html=True)
+          <ul style='margin:0;padding-left:18px;color:#555;
+                     font-size:13px;line-height:1.75;'>
+            {make_li(w1_points)}
+          </ul>
+        </div>""", unsafe_allow_html=True)
+    with wc2:
+        st.markdown(f"""
+        <div class='weak-card'>
+          <div class='weak-header'>
+            <div class='warn-icon'>⚠️</div>
+            <div>
+              <div style='font-size:10px;font-weight:600;color:{ORANGE};
+                          text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;'>
+                Key Weakness
+              </div>
+              <div class='weak-title'>{w2_title}</div>
+            </div>
+          </div>
+          <ul style='margin:0;padding-left:18px;color:#555;
+                     font-size:13px;line-height:1.75;'>
+            {make_li(w2_points)}
+          </ul>
+        </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
 
