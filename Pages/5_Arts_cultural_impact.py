@@ -632,11 +632,19 @@ if not sent_rows:
         {"category": "General Positive Engagement",    "description": "Reported the young person liked the show a lot — baseline satisfaction",      "count": m["cat_positive"],           "pct": round(m["cat_positive"]/n*100),           "highlight": "low"},
     ]
 
-col_table, col_chart = st.columns([5, 5])
+    # Sort descending by percentage
+    sent_rows_sorted = sorted(sent_rows, key=lambda r: r.get("pct", 0), reverse=True)
+    # Re-assign highlight based on sorted position
+    for i, row in enumerate(sent_rows_sorted):
+        if i == 0:
+            row["highlight"] = "top"
+        elif i == len(sent_rows_sorted) - 1:
+            row["highlight"] = "low"
+        else:
+            row["highlight"] = "normal"
 
-with col_table:
     rows_html = ""
-    for row in sent_rows:
+    for row in sent_rows_sorted:
         name  = row.get("category", "")
         desc  = row.get("description", "")
         count = row.get("count", 0)
@@ -679,44 +687,6 @@ with col_table:
             f"<div style='margin-top:10px;font-size:12px;color:#777;"
             f"font-style:italic;line-height:1.6;'>{sent_insight}</div>",
             unsafe_allow_html=True)
-
-with col_chart:
-    names_c  = [r.get("category","") for r in sent_rows]
-    values_c = [r.get("pct", 0) for r in sent_rows]
-    counts_c = [r.get("count",0) for r in sent_rows]
-    colors_c = [
-        GREEN  if r.get("highlight") == "top"  else
-        YELLOW if r.get("highlight") == "low"  else
-        "#F2B99B"
-        for r in sent_rows
-    ]
-    short_names = [nm[:22]+"…" if len(nm)>22 else nm for nm in names_c]
-
-    fig = go.Figure(go.Bar(
-        x=values_c, y=short_names,
-        orientation="h",
-        marker=dict(color=colors_c, line=dict(color="white", width=0.5)),
-        text=[f"{v}%" for v in values_c],
-        textposition="outside",
-        textfont=dict(size=11, color="#333"),
-        hovertemplate="<b>%{y}</b><br>%{x}% (%{customdata} of "
-                      + str(n) + ")<extra></extra>",
-        customdata=counts_c,
-    ))
-    fig.update_layout(
-        title=dict(text="Cultural Outcomes Distribution",
-                   font=dict(size=13, color="#333", family="Arial"),
-                   x=0.5, xanchor="center"),
-        height=290,
-        margin=dict(l=10, r=55, t=44, b=10),
-        paper_bgcolor=WHITE, plot_bgcolor=WHITE,
-        xaxis=dict(ticksuffix="%", tickfont=dict(size=10, color="#333"),
-                   showgrid=True, gridcolor="#f0f0f0", zeroline=False),
-        yaxis=dict(tickfont=dict(size=10, color="#333"), showgrid=False),
-        hoverlabel=dict(bgcolor=ORANGE, font_color="white", font_size=11),
-    )
-    st.plotly_chart(fig, use_container_width=True,
-                    config={"displayModeBar": False})
 
 st.markdown("</div>", unsafe_allow_html=True)
 
