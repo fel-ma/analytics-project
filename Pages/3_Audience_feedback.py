@@ -281,8 +281,11 @@ st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
 # AI button
 # ─────────────────────────────────────────────────────────
 run             = st.button("🚀 Generate AI Insights", type="primary")
-ai_summary      = st.session_state.get("fb_summary",  None)
 ai_insights     = st.session_state.get("fb_insights", None)
+ai_weak         = st.session_state.get("fb_weak",     None)
+ai_rec          = st.session_state.get("fb_rec",      None)
+ai_recdet       = st.session_state.get("fb_recdet",   None)
+ai_summary      = st.session_state.get("fb_summary",  None)
 
 if run:
     if not api_key:
@@ -292,26 +295,172 @@ if run:
         try:
             context = build_context_feedback(comments)
 
+            # ── Prompt 1: Bar chart insights ─────────────────
+            # DATA: 281 usable comments, classified by topic (Show/Performance: 195,
+            # Family/Children: 152, Duration: 62, Venue: 50, Interaction: 28,
+            # Costume: 26, Price: 24, Audio: 17, Food: 9)
+            # SENTIMENT: Positive 54% (152), Neutral 26% (74), Suggestions 20% (55)
             ai_insights = call_ai(api_key, model,
-                """You are an audience research analyst for an Australian children's theatre company.
-Based on these survey comments, return exactly 4 bullet points (starting with •) covering:
-- Overall sentiment of audience feedback
-- Most praised aspects of the experience
-- Most common logistical barriers (not artistic)
-- One strategic opportunity to improve audience satisfaction
-Be specific and data-driven. No headers, no markdown.""", context)
+                f"""You are an audience research analyst for Monkey Baa Theatre, Australia.
+Monkey Baa's Theory of Change: "We create and tour theatre productions and make it easier
+for young people to see our shows. Young people experience joy, feel included and grow curious."
 
+Based on {total} audience feedback comments ({len(pos)} positive / {len(neu)} neutral / {len(neg)} suggestions),
+return exactly 4 bullet points (starting with •) with bold labels in this format:
+• **Label:** insight text
+
+Structure:
+• **Overall Sentiment:** [summarise the dominant tone with numbers, e.g. X of {total}]
+• **Most Praised:** [what audiences celebrated most — be specific to the comments]
+• **Logistical Barriers:** [operational issues raised — not artistic — with mention counts]
+• **Strategic Opportunity:** [one data-grounded recommendation to improve experience]
+
+RULE: Every % must show base — write "X% (N of {total})". No headers. No markdown beyond bold labels.""",
+                context)
+
+            # ── Prompt 2: TWO Weaknesses ──────────────────────
+            # DATA: Negative/suggestions comments (55 of 281)
+            # Key issues: Parking (12 mentions), Age clarity (11), Price (8),
+            # Audio (7), Catering (5)
+            ai_weak = call_ai(api_key, model,
+                f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
+Theory of Change: "Young people miss out due to geographic, financial or social barriers.
+Limited exposure to live performing arts restricts opportunities to engage, imagine, and grow."
+
+Based on {total} audience feedback comments, identify exactly 2 key weaknesses
+that create barriers to the audience experience and undermine the Theory of Change mission.
+
+Return ONLY this JSON, no markdown, no preamble:
+{{
+  "weakness_1": {{
+    "title": "Weakness title (5-7 words, specific to feedback data)",
+    "points": [
+      "Specific finding with mention count (X of {total} comments / X% of {total})",
+      "Why this creates a barrier as defined in the Theory of Change",
+      "Which audience segment is most affected"
+    ]
+  }},
+  "weakness_2": {{
+    "title": "Weakness title (5-7 words, different focus from weakness 1)",
+    "points": [
+      "Specific finding with mention count (X of {total} comments / X% of {total})",
+      "Why this undermines the mission of making theatre accessible and enjoyable",
+      "Risk to audience retention and repeat attendance if not addressed"
+    ]
+  }}
+}}
+Key data: Parking issues = 12 mentions, Age clarity = 11, Price concerns = 8,
+Audio quality = 7, Catering = 5. Total suggestions = {len(neg)} of {total}.
+Every % must include the base number.""",
+                context)
+
+            # ── Prompt 3: Primary Recommendation ─────────────
+            # DATA: Same comment corpus — biggest barriers vs Theory of Change access goal
+            ai_rec = call_ai(api_key, model,
+                f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
+Theory of Change strategy: "We connect with young people and their communities by bringing
+high-quality theatre to them. We provide targeted access to theatre to young people in need."
+
+Based on {total} audience feedback comments, write ONE primary strategic recommendation
+that addresses the most impactful audience experience barrier.
+
+Return ONLY this JSON, no markdown, no preamble:
+{{
+  "title": "Recommendation title (5-8 words, action-oriented)",
+  "description": "3-4 sentences: (1) name the specific barrier with mention count (X of {total}),
+  (2) link to Theory of Change access strategy, (3) propose one concrete operational action,
+  (4) state the expected improvement in audience reach or retention."
+}}
+Every % must include the base number.""",
+                context)
+
+            # ── Prompt 4: THREE Recommendation Details ────────
+            # DATA: Top 3 improvement areas from comments
+            # Parking (12), Age clarity (11), Price (8)
+            ai_recdet = call_ai(api_key, model,
+                f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
+Theory of Change activities:
+- Touring extensively to provide regular theatre experiences across regional and urban Australia
+- Partnering with local organisations to connect with young people nationally
+- Making it easier for young people to see shows (removing barriers)
+
+Based on audience feedback from {total} comments, provide exactly 3 actionable recommendations
+targeting the top operational barriers identified.
+
+Return ONLY this JSON, no markdown, no preamble:
+{{
+  "items": [
+    {{
+      "title": "Improve Venue Navigation & Pre-Arrival Communication",
+      "points": [
+        "Parking and wayfinding issues mentioned in 12 of {total} comments — send pre-show email with maps, parking links and directions",
+        "Directly addresses the Theory of Change goal of removing barriers to access"
+      ]
+    }},
+    {{
+      "title": "Clarify Age Suitability & Sensory Warnings",
+      "points": [
+        "Age range clarity raised in 11 of {total} comments — add clearer age guidance and sensory/loud scene warnings to all marketing",
+        "Ensures young people from diverse needs backgrounds can access shows confidently"
+      ]
+    }},
+    {{
+      "title": "Introduce Family Pricing & Access Pathways",
+      "points": [
+        "Price concerns raised in 8 of {total} comments — introduce family bundle pricing and subsidised tickets via Theatre Unlimited",
+        "Advances the Theory of Change goal of reducing financial barriers to live theatre access"
+      ]
+    }}
+  ]
+}}
+Rewrite each point in your own words — use the baseline numbers but make language strategic.""",
+                context)
+
+            # ── Prompt 5: Executive Summary (synthesises all) ─
+            page_synthesis = f"""
+=== FEEDBACK DATA ===
+{context}
+
+=== BAR CHART INSIGHTS ===
+{ai_insights}
+
+=== KEY WEAKNESSES ===
+{ai_weak}
+
+=== PRIMARY RECOMMENDATION ===
+{ai_rec}
+
+=== RECOMMENDATION DETAILS ===
+{ai_recdet}
+"""
             ai_summary = call_ai(api_key, model,
-                """You are a senior analyst writing an executive paragraph for Monkey Baa Theatre management.
-Based on audience survey comments, write ONE paragraph (4-5 sentences) that:
-- Opens with the overall positive sentiment and key highlights
-- Acknowledges the main logistical barriers (parking, price, audio, age clarity)
-- Emphasises these are operational, not artistic, issues
-- Closes with a forward-looking recommendation
-Professional, warm, and actionable tone. No headers or bullet points.""", context)
+                f"""You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
+Audience Feedback report. It appears at the bottom and synthesises ALL findings
+into a board-quality strategic conclusion.
 
-            st.session_state["fb_summary"]  = ai_summary
+Monkey Baa's Theory of Change mission:
+"To uplift young Australians by embedding the arts into their formative years.
+To ensure all young people have equitable access to creative experiences."
+
+Write ONE cohesive paragraph of 6-7 sentences that:
+1. Opens with the headline sentiment result — overall positive tone with numbers
+   (X of {total} comments / X% of {total})
+2. Highlights what audiences praised most (artistic quality, child engagement)
+3. Acknowledges the operational barriers (parking, price, audio, age clarity)
+   and frames them as non-artistic — the artistic experience is strong
+4. Connects the barriers to the Theory of Change access mission
+5. Summarises the 3 strategic recommendations in one forward-looking sentence
+6. Closes with a statement about audience loyalty and the path to broader access
+
+Board-quality conclusion. Purposeful, warm, actionable. No headers. No bullet points.""",
+                page_synthesis)
+
             st.session_state["fb_insights"] = ai_insights
+            st.session_state["fb_weak"]     = ai_weak
+            st.session_state["fb_rec"]      = ai_rec
+            st.session_state["fb_recdet"]   = ai_recdet
+            st.session_state["fb_summary"]  = ai_summary
+
         except Exception as e:
             st.error(f"API error: {e}")
             st.stop()
@@ -357,9 +506,21 @@ with c1:
 
 with c2:
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    st.markdown(bullets_html(ai_insights) if ai_insights
-                else placeholder("Click <b>Generate AI Insights</b> to load feedback analysis."),
-                unsafe_allow_html=True)
+    if ai_insights:
+        import re as _re
+        lines = [l.strip() for l in ai_insights.split("\n") if l.strip()]
+        items = [l for l in lines if l.startswith("•") or l.startswith("-")] or lines
+        li_html = ""
+        for b in items:
+            text = b.lstrip("•- ").strip()
+            text = _re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+            li_html += f"<li style='margin-bottom:10px;'>{text}</li>"
+        st.markdown(
+            f"<div class='insight-box'><ul style='margin:0;padding-left:16px;'>"
+            f"{li_html}</ul></div>", unsafe_allow_html=True)
+    else:
+        st.markdown(placeholder("Click <b>Generate AI Insights</b> to load feedback analysis."),
+                    unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -404,8 +565,163 @@ for i, area in enumerate(IMPROVEMENT_AREAS):
 st.markdown("</div>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────
-# SUMMARY
+# SECTION 4 — Key Findings & Recommendations (UNIFIED)
 # ─────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+  .weak-card {
+    background-color:#FFF8F5; border:1.5px solid #F2D0C0;
+    border-radius:12px; padding:18px 20px; height:100%;
+  }
+  .weak-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .warn-icon {
+    width:28px; height:28px; flex-shrink:0;
+    background:#FFF8F5; border:1.5px solid #E8673A;
+    border-radius:6px; display:flex; align-items:center;
+    justify-content:center; font-size:15px;
+  }
+  .weak-title { font-size:13px; font-weight:700; color:#333; }
+  .rec-primary {
+    background:linear-gradient(135deg,#FFF8F5 0%,#FDF0E8 100%);
+    border:1.5px solid #E8673A; border-radius:12px;
+    padding:20px 24px; display:flex; gap:16px;
+    align-items:flex-start; margin-top:12px;
+  }
+  .star-bg {
+    background:#E8673A; color:white; border-radius:50%;
+    width:34px; height:34px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:17px;
+  }
+  .rec-primary-title { font-size:14px; font-weight:700; color:#333; margin-bottom:8px; }
+  .rec-section-title {
+    font-size:15px; font-weight:700; color:#333;
+    margin:4px 0 14px 0; padding-bottom:8px;
+    border-bottom:2px solid #E8673A; display:inline-block;
+  }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("<div class='rec-section-title'>🔍 Key Findings & Recommendations</div>",
+            unsafe_allow_html=True)
+
+if not ai_weak and not ai_rec and not ai_recdet:
+    st.markdown(
+        "<div style='color:#bbb;font-style:italic;font-size:13px;padding:8px 0;'>"
+        "Click <b>Generate AI Insights</b> above to load findings and recommendations.</div>",
+        unsafe_allow_html=True)
+else:
+    import json as _json
+    import re as _re2
+
+    # ── TWO Weaknesses side by side ───────────────────────
+    try:
+        w = _json.loads(ai_weak) if ai_weak else {}
+        w1_title  = w.get("weakness_1", {}).get("title",  "Key Weakness 1")
+        w1_points = w.get("weakness_1", {}).get("points", [])
+        w2_title  = w.get("weakness_2", {}).get("title",  "Key Weakness 2")
+        w2_points = w.get("weakness_2", {}).get("points", [])
+    except Exception:
+        w1_title, w1_points = "Key Weakness 1", []
+        w2_title, w2_points = "Key Weakness 2", []
+
+    def make_li(points):
+        return "".join(
+            f"<li style='margin-bottom:5px;'>{p}</li>" for p in points)
+
+    wc1, wc2 = st.columns(2)
+    with wc1:
+        st.markdown(f"""
+        <div class='weak-card'>
+          <div class='weak-header'>
+            <div class='warn-icon'>⚠️</div>
+            <div>
+              <div style='font-size:10px;font-weight:600;color:{ORANGE};
+                          text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;'>
+                Key Weakness</div>
+              <div class='weak-title'>{w1_title}</div>
+            </div>
+          </div>
+          <ul style='margin:0;padding-left:18px;color:#555;font-size:13px;line-height:1.75;'>
+            {make_li(w1_points)}</ul>
+        </div>""", unsafe_allow_html=True)
+    with wc2:
+        st.markdown(f"""
+        <div class='weak-card'>
+          <div class='weak-header'>
+            <div class='warn-icon'>⚠️</div>
+            <div>
+              <div style='font-size:10px;font-weight:600;color:{ORANGE};
+                          text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;'>
+                Key Weakness</div>
+              <div class='weak-title'>{w2_title}</div>
+            </div>
+          </div>
+          <ul style='margin:0;padding-left:18px;color:#555;font-size:13px;line-height:1.75;'>
+            {make_li(w2_points)}</ul>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
+
+    # ── Primary Recommendation ────────────────────────────
+    try:
+        r = _json.loads(ai_rec) if ai_rec else {}
+        rec_title = r.get("title",       "Primary Recommendation")
+        rec_desc  = r.get("description", "")
+    except Exception:
+        rec_title, rec_desc = "Primary Recommendation", ""
+
+    if rec_desc:
+        st.markdown(f"""
+        <div class='rec-primary'>
+          <div class='star-bg'>★</div>
+          <div>
+            <div class='rec-primary-title'>{rec_title}</div>
+            <p style='margin:0;color:#555;font-size:13px;line-height:1.75;'>{rec_desc}</p>
+          </div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
+
+    # ── THREE Recommendation Details ─────────────────────
+    try:
+        rd       = _json.loads(ai_recdet) if ai_recdet else {}
+        rd_items = rd.get("items", [])
+    except Exception:
+        rd_items = []
+
+    if rd_items:
+        st.markdown("""
+        <div style='background:#F7F4F1;border-radius:12px;padding:22px 24px;'>
+          <div style='font-size:14px;font-weight:700;color:#333;
+                      margin-bottom:16px;display:flex;align-items:center;gap:8px;'>
+            <span style='color:#E8673A;font-size:16px;'>★</span>
+            Recommendation Details
+          </div>
+        </div>""", unsafe_allow_html=True)
+
+        for i, item in enumerate(rd_items):
+            if i > 0:
+                st.markdown(
+                    "<div style='color:#E8673A;font-size:16px;"
+                    "padding-left:18px;margin:2px 0 4px;'>↓</div>",
+                    unsafe_allow_html=True)
+            bullets = "".join(
+                f"<li style='margin-bottom:4px;'>{p}</li>"
+                for p in item.get("points", []))
+            st.markdown(f"""
+            <div style='background:white;border-radius:10px;padding:14px 20px;
+                        border-left:4px solid {ORANGE};margin-bottom:4px;'>
+              <div style='font-size:13px;font-weight:700;color:{ORANGE_DARK};
+                          margin-bottom:8px;'>
+                {i+1} · {item.get('title','')}
+              </div>
+              <ul style='margin:0;padding-left:18px;color:#555;
+                         font-size:12.5px;line-height:1.72;'>
+                {bullets}
+              </ul>
+            </div>""", unsafe_allow_html=True)
+
+st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
 st.markdown("<div style='font-size:15px;font-weight:600;color:#333;margin-bottom:4px;'>"
             "Executive Summary</div>", unsafe_allow_html=True)
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
