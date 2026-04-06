@@ -248,6 +248,22 @@ def call_ai(api_key, model, system_prompt, context, max_tokens=800):
     return r.choices[0].message.content.strip()
 
 
+def call_ai_json(api_key, model, system_prompt, context, max_tokens=1200):
+    """Call AI and return cleaned JSON string — strips markdown fences if present."""
+    import re as _re_json
+    r = OpenAI(api_key=api_key).chat.completions.create(
+        model=model,
+        messages=[{"role":"system","content":system_prompt},
+                  {"role":"user","content":f"Data:\n{context}"}],
+        temperature=0.2, max_tokens=max_tokens,
+    )
+    raw = r.choices[0].message.content.strip()
+    # Strip markdown code fences if AI wrapped in ```json ... ```
+    raw = _re_json.sub(r"^```(?:json)?\s*", "", raw)
+    raw = _re_json.sub(r"\s*```$", "", raw)
+    return raw.strip()
+
+
 def bullets_html(text):
     lines = [l.strip() for l in text.split("\n") if l.strip()]
     items = [l for l in lines if l.startswith("•") or l.startswith("-")] or lines
@@ -380,54 +396,43 @@ RULE: Every % must show base — write "X% (N of {n})". Start with •.""",
                 ctx)
 
             # 2 — AI-Generated Sentiment Table
-            ai_sentiment = call_ai(api_key, model,
+            ai_sentiment = call_ai_json(api_key, model,
                 f"""You are a cultural impact analyst for Monkey Baa Theatre, Australia.
-Based on the survey data, create a Sentiment Analysis table for Cultural Outcomes.
+Theory of Change: "Young people see themselves in stories and feel validated.
+A generation of lifelong arts engagers is cultivated."
 
-Return ONLY this JSON, no markdown, no preamble:
+For each category below, write ONE clear sentence explaining the CULTURAL SIGNIFICANCE
+of that result — what it means for children's development and arts engagement.
+Do NOT describe how it was measured. Explain what it means.
+
+Data per category:
+1. Cultural Learning & Awareness ({round(m['cat_cultural_learning']/n*100)}%, {m['cat_cultural_learning']} of {n}):
+   56% asked questions after show, 12% wanted to learn more, 5% became culturally aware.
+
+2. Confidence & Self-Expression ({round(m['cat_confidence']/n*100)}%, {m['cat_confidence']} of {n}):
+   Creativity avg 7.1/10, Imagination avg 7.1/10, 35% did imaginative play after show.
+
+3. Emotional & Social Wellbeing ({round(m['cat_emotional']/n*100)}%, {m['cat_emotional']} of {n}):
+   92% felt Happy, Belonging avg 7.0/10, Personal Meaning avg 7.5/10.
+
+4. Curiosity & Critical Thinking ({round(m['cat_curiosity']/n*100)}%, {m['cat_curiosity']} of {n}):
+   39% felt Curious, 21% made connections to their own life.
+
+5. General Positive Engagement ({round(m['cat_positive']/n*100)}%, {m['cat_positive']} of {n}):
+   87% liked the show a lot, 75% rated entertaining >=8/10.
+
+Return ONLY valid JSON. No markdown. No preamble. No backticks:
 {{
   "rows": [
-    {{
-      "category": "Cultural Learning & Awareness",
-      "description": "1-sentence description of what this measures culturally",
-      "count": {m['cat_cultural_learning']},
-      "pct": {round(m['cat_cultural_learning']/n*100)},
-      "highlight": "top"
-    }},
-    {{
-      "category": "Confidence & Self-Expression",
-      "description": "1-sentence description of what this measures culturally",
-      "count": {m['cat_confidence']},
-      "pct": {round(m['cat_confidence']/n*100)},
-      "highlight": "normal"
-    }},
-    {{
-      "category": "Emotional & Social Wellbeing",
-      "description": "1-sentence description of what this measures culturally",
-      "count": {m['cat_emotional']},
-      "pct": {round(m['cat_emotional']/n*100)},
-      "highlight": "normal"
-    }},
-    {{
-      "category": "Curiosity & Critical Thinking",
-      "description": "1-sentence description of what this measures culturally",
-      "count": {m['cat_curiosity']},
-      "pct": {round(m['cat_curiosity']/n*100)},
-      "highlight": "normal"
-    }},
-    {{
-      "category": "General Positive Engagement",
-      "description": "1-sentence description of what this measures culturally",
-      "count": {m['cat_positive']},
-      "pct": {round(m['cat_positive']/n*100)},
-      "highlight": "low"
-    }}
+    {{"category": "Cultural Learning & Awareness", "description": "one sentence cultural significance here", "count": {m['cat_cultural_learning']}, "pct": {round(m['cat_cultural_learning']/n*100)}}},
+    {{"category": "Confidence & Self-Expression",  "description": "one sentence cultural significance here", "count": {m['cat_confidence']},         "pct": {round(m['cat_confidence']/n*100)}}},
+    {{"category": "Emotional & Social Wellbeing",  "description": "one sentence cultural significance here", "count": {m['cat_emotional']},           "pct": {round(m['cat_emotional']/n*100)}}},
+    {{"category": "Curiosity & Critical Thinking", "description": "one sentence cultural significance here", "count": {m['cat_curiosity']},           "pct": {round(m['cat_curiosity']/n*100)}}},
+    {{"category": "General Positive Engagement",   "description": "one sentence cultural significance here", "count": {m['cat_positive']},            "pct": {round(m['cat_positive']/n*100)}}}
   ],
-  "insight": "1-2 sentence interpretation of what this table reveals about cultural outcomes overall"
-}}
-The descriptions must explain CULTURAL significance, not just restate what was measured.
-Total responses = {n}.""",
-                ctx)
+  "insight": "one sentence overall conclusion about cultural outcomes"
+}}""",
+                ctx, max_tokens=1000)
 
             # 3 — TWO Weaknesses
             ai_weak = call_ai(api_key, model,
@@ -611,82 +616,108 @@ st.markdown("<div class='section-title'>Sentiment Analysis on Cultural Outcomes 
 import json as _json_sent
 import re as _re
 
-# Parse AI sentiment or fall back to computed data
-sent_rows = None
+# Parse AI sentiment if available — strip markdown fences defensively
+sent_rows    = None
 sent_insight = ""
+parse_error  = ""
 if ai_sentiment:
     try:
-        sd = _json_sent.loads(ai_sentiment)
+        raw = ai_sentiment.strip()
+        # Strip markdown code fences if AI wrapped output
+        raw = _re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = _re.sub(r"\s*```\s*$", "", raw).strip()
+        sd = _json_sent.loads(raw)
         sent_rows    = sd.get("rows", [])
         sent_insight = sd.get("insight", "")
-    except Exception:
-        sent_rows = None
+    except Exception as e:
+        sent_rows  = None
+        parse_error = str(e)
 
-# Fallback rows if AI hasn't run or failed
-if not sent_rows:
-    sent_rows = [
-        {"category": "Cultural Learning & Awareness",  "description": "Became culturally aware, asked questions, or desired to learn more",         "count": m["cat_cultural_learning"], "pct": round(m["cat_cultural_learning"]/n*100), "highlight": "top"},
-        {"category": "Confidence & Self-Expression",   "description": "Rated Creativity or Imagination ≥7 — creative confidence indicators",        "count": m["cat_confidence"],         "pct": round(m["cat_confidence"]/n*100),         "highlight": "normal"},
-        {"category": "Emotional & Social Wellbeing",   "description": "Felt Happy during show or rated Belonging ≥7 — social connection outcomes",   "count": m["cat_emotional"],          "pct": round(m["cat_emotional"]/n*100),          "highlight": "normal"},
-        {"category": "Curiosity & Critical Thinking",  "description": "Felt Curious or made connections to their own life — reflective engagement",  "count": m["cat_curiosity"],          "pct": round(m["cat_curiosity"]/n*100),          "highlight": "normal"},
-        {"category": "General Positive Engagement",    "description": "Reported the young person liked the show a lot — baseline satisfaction",      "count": m["cat_positive"],           "pct": round(m["cat_positive"]/n*100),           "highlight": "low"},
-    ]
+# Build ai_desc_map — exact category name match
+ai_desc_map = {}
+if sent_rows:
+    for row in sent_rows:
+        cat = row.get("category", "").strip()
+        desc = row.get("description", "").strip()
+        if cat and desc:
+            ai_desc_map[cat] = desc
 
-    # Sort descending by percentage
-    sent_rows_sorted = sorted(sent_rows, key=lambda r: r.get("pct", 0), reverse=True)
-    # Re-assign highlight based on sorted position
-    for i, row in enumerate(sent_rows_sorted):
-        if i == 0:
-            row["highlight"] = "top"
-        elif i == len(sent_rows_sorted) - 1:
-            row["highlight"] = "low"
-        else:
-            row["highlight"] = "normal"
+# Base data rows — always available from computed metrics
+base_rows = [
+    {"category": "Cultural Learning & Awareness", "count": m["cat_cultural_learning"], "pct": round(m["cat_cultural_learning"]/n*100)},
+    {"category": "Confidence & Self-Expression",  "count": m["cat_confidence"],         "pct": round(m["cat_confidence"]/n*100)},
+    {"category": "Emotional & Social Wellbeing",  "count": m["cat_emotional"],           "pct": round(m["cat_emotional"]/n*100)},
+    {"category": "Curiosity & Critical Thinking", "count": m["cat_curiosity"],           "pct": round(m["cat_curiosity"]/n*100)},
+    {"category": "General Positive Engagement",   "count": m["cat_positive"],            "pct": round(m["cat_positive"]/n*100)},
+]
 
-    rows_html = ""
-    for row in sent_rows_sorted:
-        name  = row.get("category", "")
-        desc  = row.get("description", "")
-        count = row.get("count", 0)
-        pct   = row.get("pct", 0)
-        hl    = row.get("highlight", "normal")
-        if hl == "top":
-            bg = "#E8F5EE"; tc = "#2d6a4f"; fw = "600"
-        elif hl == "low":
-            bg = "#FFF8E1"; tc = "#7a5800"; fw = "500"
-        else:
-            bg = "white"; tc = GRAY_TEXT; fw = "400"
-        rows_html += f"""<tr style='background:{bg};'>
-          <td style='font-weight:{fw};color:{tc};padding:8px 12px;
-                     border-bottom:1px solid #eee;'>{name}</td>
-          <td style='font-size:11px;color:#777;padding:8px 12px;
-                     border-bottom:1px solid #eee;'>{desc}</td>
-          <td style='font-weight:600;color:{tc};padding:8px 12px;
-                     border-bottom:1px solid #eee;white-space:nowrap;'>
-            {pct}%<br>
-            <span style='font-size:10px;color:#aaa;font-weight:400;'>
-              {count} of {n}
-            </span>
-          </td>
-        </tr>"""
-    st.markdown(f"""
-    <table style='width:100%;border-collapse:collapse;font-size:12.5px;'>
-      <thead><tr>
-        <th style='background:{ORANGE};color:white;padding:8px 12px;
-                   text-align:left;font-weight:600;'>Category</th>
-        <th style='background:{ORANGE};color:white;padding:8px 12px;
-                   text-align:left;font-weight:600;'>Cultural Significance</th>
-        <th style='background:{ORANGE};color:white;padding:8px 12px;
-                   text-align:left;font-weight:600;'>Share</th>
-      </tr></thead>
-      <tbody>{rows_html}</tbody>
-    </table>""", unsafe_allow_html=True)
+# Merge AI descriptions into base rows
+for row in base_rows:
+    row["description"] = ai_desc_map.get(row["category"], "")
 
-    if sent_insight:
-        st.markdown(
-            f"<div style='margin-top:10px;font-size:12px;color:#777;"
-            f"font-style:italic;line-height:1.6;'>{sent_insight}</div>",
-            unsafe_allow_html=True)
+# Show parse error only in dev — helps debug without breaking UX
+if ai_sentiment and parse_error and not ai_desc_map:
+    st.caption(f"⚠️ Could not parse AI sentiment response. Error: {parse_error[:120]}")
+
+# ── Sort descending by percentage ──
+sent_rows_sorted = sorted(base_rows, key=lambda r: r.get("pct", 0), reverse=True)
+for i, row in enumerate(sent_rows_sorted):
+    row["highlight"] = "top" if i == 0 else ("low" if i == len(sent_rows_sorted)-1 else "normal")
+
+# ai_has_run = True only when we actually have descriptions
+ai_has_run = bool(ai_desc_map)
+rows_html  = ""
+for row in sent_rows_sorted:
+    name  = row["category"]
+    desc  = row["description"]
+    count = row["count"]
+    pct   = row["pct"]
+    hl    = row["highlight"]
+    if hl == "top":
+        bg = "#E8F5EE"; tc = "#2d6a4f"; fw = "600"
+    elif hl == "low":
+        bg = "#FFF8E1"; tc = "#7a5800"; fw = "500"
+    else:
+        bg = "white";   tc = GRAY_TEXT;  fw = "400"
+
+    if ai_has_run and desc:
+        desc_cell = f"<span style='font-size:12px;color:#555;line-height:1.6;'>{desc}</span>"
+    else:
+        desc_cell = "<span style='font-size:11px;color:#ccc;font-style:italic;'>AI insight will appear here after running analysis</span>"
+
+    rows_html += f"""<tr style='background:{bg};'>
+      <td style='font-weight:{fw};color:{tc};padding:10px 12px;
+                 border-bottom:1px solid #eee;width:22%;'>{name}</td>
+      <td style='padding:10px 12px;border-bottom:1px solid #eee;width:64%;'>
+        {desc_cell}
+      </td>
+      <td style='font-weight:600;color:{tc};padding:10px 12px;
+                 border-bottom:1px solid #eee;white-space:nowrap;
+                 text-align:center;width:14%;'>
+        {pct}%<br>
+        <span style='font-size:10px;color:#aaa;font-weight:400;'>
+          {count} of {n}
+        </span>
+      </td>
+    </tr>"""
+st.markdown(f"""
+<table style='width:100%;border-collapse:collapse;font-size:12.5px;'>
+  <thead><tr>
+    <th style='background:{ORANGE};color:white;padding:10px 12px;
+               text-align:left;font-weight:600;width:22%;'>Category</th>
+    <th style='background:{ORANGE};color:white;padding:10px 12px;
+               text-align:left;font-weight:600;width:64%;'>Cultural Impact & Significance</th>
+    <th style='background:{ORANGE};color:white;padding:10px 12px;
+               text-align:center;font-weight:600;width:14%;'>Share</th>
+  </tr></thead>
+  <tbody>{rows_html}</tbody>
+</table>""", unsafe_allow_html=True)
+
+if sent_insight:
+    st.markdown(
+        f"<div style='margin-top:10px;font-size:12px;color:#777;"
+        f"font-style:italic;line-height:1.6;'>{sent_insight}</div>",
+        unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
 
