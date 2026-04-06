@@ -401,9 +401,9 @@ RULE: Every % must show base — write "X% (N of {n})". Start with •.""",
 Theory of Change: "Young people see themselves in stories and feel validated.
 A generation of lifelong arts engagers is cultivated."
 
-For each category below, write ONE clear sentence explaining the CULTURAL SIGNIFICANCE
-of that result — what it means for children's development and arts engagement.
-Do NOT describe how it was measured. Explain what it means.
+For each category, write a description of EXACTLY 30-40 words explaining the CULTURAL
+SIGNIFICANCE — what it means for children's development and arts engagement.
+Do NOT describe how it was measured. Do NOT repeat the numbers. Explain the meaning.
 
 Data per category:
 1. Cultural Learning & Awareness ({round(m['cat_cultural_learning']/n*100)}%, {m['cat_cultural_learning']} of {n}):
@@ -421,16 +421,18 @@ Data per category:
 5. General Positive Engagement ({round(m['cat_positive']/n*100)}%, {m['cat_positive']} of {n}):
    87% liked the show a lot, 75% rated entertaining >=8/10.
 
+STRICT RULE: Each description must be between 30 and 40 words. Count carefully.
+
 Return ONLY valid JSON. No markdown. No preamble. No backticks:
 {{
   "rows": [
-    {{"category": "Cultural Learning & Awareness", "description": "one sentence cultural significance here", "count": {m['cat_cultural_learning']}, "pct": {round(m['cat_cultural_learning']/n*100)}}},
-    {{"category": "Confidence & Self-Expression",  "description": "one sentence cultural significance here", "count": {m['cat_confidence']},         "pct": {round(m['cat_confidence']/n*100)}}},
-    {{"category": "Emotional & Social Wellbeing",  "description": "one sentence cultural significance here", "count": {m['cat_emotional']},           "pct": {round(m['cat_emotional']/n*100)}}},
-    {{"category": "Curiosity & Critical Thinking", "description": "one sentence cultural significance here", "count": {m['cat_curiosity']},           "pct": {round(m['cat_curiosity']/n*100)}}},
-    {{"category": "General Positive Engagement",   "description": "one sentence cultural significance here", "count": {m['cat_positive']},            "pct": {round(m['cat_positive']/n*100)}}}
+    {{"category": "Cultural Learning & Awareness", "description": "30-40 word cultural significance", "count": {m['cat_cultural_learning']}, "pct": {round(m['cat_cultural_learning']/n*100)}}},
+    {{"category": "Confidence & Self-Expression",  "description": "30-40 word cultural significance", "count": {m['cat_confidence']},         "pct": {round(m['cat_confidence']/n*100)}}},
+    {{"category": "Emotional & Social Wellbeing",  "description": "30-40 word cultural significance", "count": {m['cat_emotional']},           "pct": {round(m['cat_emotional']/n*100)}}},
+    {{"category": "Curiosity & Critical Thinking", "description": "30-40 word cultural significance", "count": {m['cat_curiosity']},           "pct": {round(m['cat_curiosity']/n*100)}}},
+    {{"category": "General Positive Engagement",   "description": "30-40 word cultural significance", "count": {m['cat_positive']},            "pct": {round(m['cat_positive']/n*100)}}}
   ],
-  "insight": "one sentence overall conclusion about cultural outcomes"
+  "insight": "40-50 word overall conclusion connecting this data to Monkey Baa's Theory of Change mission"
 }}""",
                 ctx, max_tokens=1000)
 
