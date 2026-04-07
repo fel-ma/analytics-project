@@ -211,47 +211,214 @@ if run:
         st.stop()
     with st.spinner("Generating insights…"):
         try:
+            # ── Pre-compute all key numbers from live data ──────
+            total      = int(df["Audience_n"].sum())
+            remote_n_  = int(df[df["Regional II"]=="Remote"]["Audience_n"].sum())
+            remote_pct_= round(remote_n_ / total * 100, 1)
+            reg_n_     = int(df[df["Regional II"]=="Regional"]["Audience_n"].sum())
+            reg_pct_   = round(reg_n_ / total * 100, 1)
+            metro_n_   = int(df[df["Regional II"]=="Metro"]["Audience_n"].sum())
+            metro_pct_ = round(metro_n_ / total * 100, 1)
+            school_n_  = int(df[df["school"]=="School"]["Audience_n"].sum()) if "school" in df.columns else 0
+            school_pct_= round(school_n_ / total * 100, 1) if total else 0
+            state_aud  = df.groupby("State")["Audience_n"].sum().sort_values(ascending=False)
+            top2_states = list(state_aud.head(2).items())
+            bot3_states = list(state_aud.tail(3).items())
+            top_state_  = state_aud.idxmax()
+            top_state_n_= int(state_aud.max())
+            top_state_pct_ = round(top_state_n_ / total * 100, 1)
+            yearly     = df.groupby("Year")["Audience_n"].sum().sort_values()
+            min_year   = int(yearly.idxmin()); min_yr_n = int(yearly.min())
+            max_year   = int(yearly.idxmax()); max_yr_n = int(yearly.max())
+            total_ev_  = int(pd.to_numeric(df["# of events"], errors="coerce").sum())
+            n_states_  = df["State"].nunique()
+
+            # Dynamic gap summary for prompts
+            top2_str  = " | ".join(f"{s}: {int(v):,} ({v/total*100:.1f}% of {total:,})" for s,v in top2_states)
+            bot3_str  = " | ".join(f"{s}: {int(v):,} ({v/total*100:.1f}% of {total:,})" for s,v in bot3_states)
+            gaps_str  = (
+                f"Remote: {remote_n_:,} young people ({remote_pct_}% of {total:,}) — "
+                f"Regional: {reg_n_:,} ({reg_pct_}% of {total:,}) — "
+                f"Metro: {metro_n_:,} ({metro_pct_}% of {total:,}) — "
+                f"School engagement: {school_n_:,} ({school_pct_}% of {total:,}) — "
+                f"States covered: {n_states_} — "
+                f"Top state: {top_state_} ({top_state_n_:,} / {top_state_pct_}%) — "
+                f"Lowest 3 states: {bot3_str} — "
+                f"Peak year: {max_year} ({max_yr_n:,}) — "
+                f"Lowest year: {min_year} ({min_yr_n:,})"
+            )
+
+            # ── Prompt 1: Line chart ─────────────────────────────
             insights_main = call_ai(api_key, model,
-                """You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
+                f"""You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
 Monkey Baa's Theory of Change goal: EXPAND ACCESS to live theatre for young people,
 especially those facing geographic, financial or social barriers.
 Key output metrics: # performances delivered, # young people attending year-on-year.
 
-You are writing insights for the AUDIENCE TREND OVER TIME chart (2021-2025).
+You are writing insights for the AUDIENCE TREND OVER TIME chart.
 Focus EXCLUSIVELY on temporal patterns — growth, peaks, drops, and what they mean
 for the mission of expanding access.
 
 Return exactly 4 bullet points (starting with •) that:
-1. Describe the overall 2021-2025 trajectory: total reach and scale of growth
-   (use exact numbers: "from 20,029 in 2021 to X in 2025")
+1. Describe the overall trajectory using exact years and numbers from the data
 2. Identify the peak year with exact numbers and what drove that expansion of access
 3. Flag any year with decline or stagnation — what it means for continuity of access
 4. Connect the trend to the Theory of Change: is the program on track to embed
    arts access into the lives of more young Australians each year?
 
-RULE: Every % must include base — write "X% (N of 351,772 young people)".
+RULE: Use only numbers that appear in the data. Every % must include base number.
 No headers. No markdown. Start each point with •.""",
                 context)
 
+            # ── Prompt 2: Metro/Regional/Remote pie chart ────────
             insights_region = call_ai(api_key, model,
-                """You are an equity analyst for Monkey Baa Theatre, an Australian children's theatre company.
+                f"""You are an equity analyst for Monkey Baa Theatre, an Australian children's theatre company.
 Monkey Baa's Theory of Change states: "There is greater equity in cultural access across Australia.
 Our focus on removing barriers ensures young people from communities experiencing entrenched
 disadvantage gain equal opportunities to engage in the arts."
 
-Analyse the geographic distribution data and return exactly 4 bullet points (starting with •) that:
+Analyse the geographic distribution in the data and return exactly 4 bullet points (starting with •) that:
 1. Describe the Metro vs Regional vs Remote split — what it means for equity of access
-   (always write "X% (N of 351,772 young people)")
 2. Identify which region type most aligns with the Theory of Change mission and why
-3. Name the most underserved geographic segment with exact numbers
-4. Give one specific recommendation to improve geographic equity, referencing the data
+3. Name the most underserved geographic segment with exact numbers from the data
+4. Give one specific recommendation to improve geographic equity, grounded in the data
 
-CRITICAL FORMAT RULE: Every percentage MUST include the base number.
-Write "0.9% (3,203 of 351,772 young people)" NOT just "0.9%".
-No headers. No markdown. Start each point with •.""",
+RULE: Every % must include base number — write "X% (N of {total:,} young people)".
+Use only numbers from the data provided. No headers. No markdown. Start each point with •.""",
                 context)
 
-            # ── Build full page synthesis for summary ──
+            # ── Prompt 3: State table ────────────────────────────
+            insights_states = call_ai(api_key, model,
+                f"""You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change goal: reach young people across ALL of Australia,
+with particular attention to states where access to live theatre is most limited.
+
+You are providing insights for the STATE BREAKDOWN TABLE — focus exclusively on
+which states are performing well vs underserved, and what it means for equitable access.
+
+Return exactly 4 bullet points (starting with •) that:
+1. Name the top performing states with exact numbers and what % of total they represent
+2. Identify the most underserved states with exact numbers and what barrier this represents
+3. Compare performances delivered vs audience size between states —
+   are some states getting more shows but fewer young people, or vice versa?
+4. Suggest which state should be prioritised next to advance geographic equity,
+   with a specific rationale from the data
+
+RULE: Every % must include base — write "X% (N of {total:,} young people)".
+Use only numbers from the data. No headers. No markdown. Start each point with •.""",
+                context)
+
+            st.session_state["ar_main"]   = insights_main
+            st.session_state["ar_region"] = insights_region
+            st.session_state["ar_states"] = insights_states
+
+            # ── Prompt 4: Weaknesses (JSON) ──────────────────────
+            insights_weak = call_ai(api_key, model,
+                f"""You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change identifies these barriers to access:
+"Young people miss out due to geographic, financial or social barriers.
+Limited exposure to live performing arts restricts opportunities to engage, imagine, and grow."
+
+KEY DATA GAPS FROM THE CURRENT DATASET:
+{gaps_str}
+
+Based ONLY on the data provided, identify exactly 2 weaknesses that directly undermine
+the Theory of Change mission. Derive your findings from the data — do not assume or invent.
+
+Return ONLY this JSON, no markdown, no preamble:
+{{
+  "weakness_1": {{
+    "title": "Weakness title (5-7 words, derived from the data)",
+    "points": [
+      "Specific finding with exact number from the data (X of {total:,} young people / X%)",
+      "Why this undermines the Theory of Change access goal",
+      "Which communities are most affected"
+    ]
+  }},
+  "weakness_2": {{
+    "title": "Weakness title (5-7 words, different focus from weakness 1)",
+    "points": [
+      "Specific finding with exact number from the data (X of {total:,} young people / X%)",
+      "Why this represents a barrier as defined in the Theory of Change",
+      "Risk to long-term mission if not addressed"
+    ]
+  }}
+}}
+Every % MUST include the base: write "X% (N of {total:,})" not just "X%".""",
+                context)
+            st.session_state["ar_weak"] = insights_weak
+
+            # ── Prompt 5: Primary Recommendation (JSON) ──────────
+            insights_rec = call_ai(api_key, model,
+                f"""You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change strategy: "Expand access to theatre for more young people.
+We provide targeted access to theatre to young people in need via Theatre Unlimited.
+We partner with local organisations to connect with young people nationally."
+
+KEY DATA GAPS FROM THE CURRENT DATASET:
+{gaps_str}
+
+Based on the data gaps above, write ONE primary strategic recommendation that
+directly advances the Theory of Change access strategy.
+
+Return ONLY this JSON, no markdown, no preamble:
+{{
+  "title": "Recommendation title (5-8 words, action-oriented)",
+  "description": "3-4 sentences that: (1) name the specific data gap with exact numbers
+  from the dataset, (2) link it to the Theory of Change strategy,
+  (3) propose a concrete action, (4) state the expected outcome in terms of young people reached."
+}}
+Every % must include the base number. Use only data from the dataset.""",
+                context)
+            st.session_state["ar_rec"] = insights_rec
+
+            # ── Prompt 6: Recommendation Details (JSON) ───────────
+            insights_recdet = call_ai(api_key, model,
+                f"""You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
+Monkey Baa's Theory of Change activities include:
+- Touring extensively to provide regular theatre experiences across regional and urban Australia
+- Providing targeted access via Theatre Unlimited to young people in need
+- Partnering with local organisations to connect with young people nationally
+- Developing new Australian works consulted with young people and schools
+
+KEY DATA GAPS FROM THE CURRENT DATASET:
+{gaps_str}
+
+Based on the data gaps above, provide exactly 3 detailed actionable recommendations
+that each directly address a Theory of Change activity or output gap.
+Each recommendation must reference actual baseline numbers from the current dataset.
+
+Return ONLY this JSON, no markdown, no preamble:
+{{
+  "items": [
+    {{
+      "title": "Action title (5-8 words, ties to ToC activity)",
+      "points": [
+        "Specific action with current baseline number from the data",
+        "How this advances the Theory of Change output metric"
+      ]
+    }},
+    {{
+      "title": "Action title (5-8 words, ties to ToC activity)",
+      "points": [
+        "Specific action with current baseline number from the data",
+        "How this addresses the Theory of Change access barrier"
+      ]
+    }},
+    {{
+      "title": "Action title (5-8 words, ties to ToC activity)",
+      "points": [
+        "Specific action targeting underserved segment from the data",
+        "How this advances the Theory of Change equity goal"
+      ]
+    }}
+  ]
+}}
+Every % must include the base number. Use only data from the dataset.""",
+                context)
+            st.session_state["ar_recdet"] = insights_recdet
+
+            # ── Prompt 7: Executive Summary (synthesises ALL) ─────
             page_synthesis = f"""
 === RAW DATA CONTEXT ===
 {context}
@@ -275,158 +442,29 @@ No headers. No markdown. Start each point with •.""",
 {insights_recdet}
 """
             insights_summary = call_ai(api_key, model,
-                """You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
-Access & Audience Reach report page. This summary appears at the bottom of the report
-and must synthesise ALL findings already generated on the page — it is not just a
-data summary, it is a strategic conclusion.
+                f"""You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
+Access & Audience Reach report. This paragraph appears at the bottom of the full report
+and must synthesise ALL findings from the page — trends, state breakdown, geographic
+equity, weaknesses, and recommendations. It is a strategic conclusion, not a data recap.
 
 Monkey Baa's Theory of Change mission:
 "To uplift young Australians by embedding the arts into their formative years.
 To ensure all young people have equitable access to creative experiences
 that shape their identity, confidence, and connection to others."
 
-You have been given: the raw data, the trend insights, the state breakdown insights,
-the geographic equity insights, the weaknesses, and the recommendations.
-
 Write ONE cohesive paragraph of 6-7 sentences that:
-1. Opens with the headline achievement — total young people reached and
-   what this means for the mission (use exact numbers)
-2. Highlights the key trend story from the line chart (growth trajectory)
-3. Addresses the geographic equity picture — which communities were served well
-   and which were left behind (use "X% (N of 351,772)" format for all percentages)
-4. Connects the identified weaknesses to the Theory of Change barriers
-5. Bridges into the recommendations — summarise the strategic direction in one sentence
-6. Closes with a forward-looking statement grounded in the Theory of Change horizon goal:
+1. Opens with the headline achievement using exact numbers from the data
+2. Captures the key trend story: growth trajectory and peak year
+3. Addresses geographic equity using exact numbers from the data
+4. Names the most critical weakness and links it to a specific Theory of Change barrier
+5. Summarises the strategic direction from the recommendations in one sentence
+6. Closes with a forward-looking statement tied to the Theory of Change horizon:
    "greater equity in cultural access across Australia"
 
-This paragraph must feel like a CONCLUSION that a board member reads last —
-it should land with weight, not repeat bullet points.
-Professional, warm, purposeful tone. No headers. No bullet points.""",
+Use only numbers that appear in the data provided. Every % must include the base.
+Professional, warm tone. No headers. No bullet points.""",
                 page_synthesis)
-
-            st.session_state["ar_main"]    = insights_main
-            st.session_state["ar_region"]  = insights_region
-
-            insights_states = call_ai(api_key, model,
-                """You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
-Monkey Baa's Theory of Change goal: reach young people across ALL of Australia,
-with particular attention to states where access to live theatre is most limited.
-Key output metric: # communities reached, # states covered.
-
-You are providing insights for the STATE BREAKDOWN TABLE — focus exclusively on
-which states are performing well vs underserved, and what it means for equitable access.
-
-Return exactly 4 bullet points (starting with •) that:
-1. Name the top 2 states by audience with exact numbers (X of 351,772) and what
-   percentage of the national mission they represent
-2. Identify the 2-3 most underserved states with their exact numbers
-   (e.g. "SA: 4,660 young people — only 1.3% of 351,772") and what barrier this represents
-3. Compare the number of performances (events) vs audience size between states —
-   are some states getting more shows but fewer young people or vice versa?
-4. Suggest which state should be prioritised next to advance geographic equity,
-   with a specific rationale from the data
-
-CRITICAL FORMAT RULE: Every percentage MUST include the base number.
-Write "51.3% (180,569 of 351,772 young people)" NOT just "51.3%".
-No headers. No markdown. Start each point with •.""",
-                context)
-            st.session_state["ar_states"] = insights_states
-
-            # ── Weaknesses ──
-            insights_weak = call_ai(api_key, model,
-                """You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
-Monkey Baa's Theory of Change identifies these barriers to access:
-"Young people miss out due to geographic, financial or social barriers.
-Limited exposure to live performing arts restricts opportunities to engage, imagine, and grow."
-
-Based on the audience data, identify exactly 2 weaknesses that directly undermine
-the Theory of Change mission.
-
-Return ONLY this JSON, no markdown, no preamble:
-{
-  "weakness_1": {
-    "title": "Weakness title (5-7 words, specific to data)",
-    "points": [
-      "Finding with exact number (X of 351,772 young people / X%)",
-      "Why this undermines the Theory of Change access goal",
-      "Which communities are most affected"
-    ]
-  },
-  "weakness_2": {
-    "title": "Weakness title (5-7 words, specific to data)",
-    "points": [
-      "Finding with exact number (X of 351,772 young people / X%)",
-      "Why this represents a barrier as defined in the Theory of Change",
-      "Risk to long-term mission if not addressed"
-    ]
-  }
-}
-Every percentage MUST include the base: write "0.9% (3,203 of 351,772)" not just "0.9%".""",
-                context)
-            st.session_state["ar_weak"] = insights_weak
-
-            # ── Primary Recommendation ──
-            insights_rec = call_ai(api_key, model,
-                """You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
-Monkey Baa's Theory of Change strategy: "Expand access to theatre for more young people.
-We provide targeted access to theatre to young people in need via Theatre Unlimited.
-We partner with local organisations to connect with young people nationally."
-
-Based on the audience data gaps, write ONE primary strategic recommendation that
-directly advances the Theory of Change access strategy.
-
-Return ONLY this JSON, no markdown, no preamble:
-{
-  "title": "Recommendation title (5-8 words, action-oriented)",
-  "description": "3-4 sentence recommendation that: (1) names the specific data gap
-  with numbers (always X of 351,772 format), (2) links it to the Theory of Change
-  strategy, (3) proposes a concrete action, (4) states the expected outcome
-  in terms of young people reached."
-}""",
-                context)
-            st.session_state["ar_rec"] = insights_rec
-
-            # ── Recommendation Details ──
-            insights_recdet = call_ai(api_key, model,
-                """You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
-Monkey Baa's Theory of Change activities include:
-- Touring extensively to provide regular theatre experiences across regional and urban Australia
-- Providing targeted access via Theatre Unlimited to young people in need
-- Partnering with local organisations to connect with young people nationally
-- Developing new Australian works consulted with young people and schools
-
-Based on the audience data, provide exactly 3 detailed actionable recommendations
-that each directly address a Theory of Change activity or output gap.
-
-Return ONLY this JSON, no markdown, no preamble:
-{
-  "items": [
-    {
-      "title": "Action title (5-8 words, ties to ToC activity)",
-      "points": [
-        "Specific action with target number (e.g. increase Remote from 3,203 to X)",
-        "How this advances the Theory of Change output metric"
-      ]
-    },
-    {
-      "title": "Action title (5-8 words, ties to ToC activity)",
-      "points": [
-        "Specific action with current baseline (e.g. school reach is 1.3% of 351,772)",
-        "How this addresses the Theory of Change access barrier"
-      ]
-    },
-    {
-      "title": "Action title (5-8 words, ties to ToC activity)",
-      "points": [
-        "Specific action targeting underserved states (TAS+SA+NT+ACT = 2.9% combined)",
-        "Partnership or programme to address Theory of Change equity goal"
-      ]
-    }
-  ]
-}
-Every percentage must include the base number.""",
-                context)
-            st.session_state["ar_recdet"] = insights_recdet
+            st.session_state["ar_summary"] = insights_summary
 
             # ── Summary — synthesises ALL page content ──
             page_synthesis = f"""
