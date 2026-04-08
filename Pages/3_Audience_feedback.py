@@ -150,6 +150,20 @@ def call_ai(api_key, model, system_prompt, context):
     )
     return r.choices[0].message.content.strip()
 
+def call_ai_json(api_key, model, system_prompt, context):
+    """Call AI for JSON responses — higher token limit + strips markdown fences."""
+    import re as _rj
+    r = OpenAI(api_key=api_key).chat.completions.create(
+        model=model,
+        messages=[{"role":"system","content":system_prompt},
+                  {"role":"user","content":f"Data:\n{context}"}],
+        temperature=0.2, max_tokens=1200,
+    )
+    raw = r.choices[0].message.content.strip()
+    raw = _rj.sub(r"^```(?:json)?\s*", "", raw)
+    raw = _rj.sub(r"\s*```\s*$", "", raw).strip()
+    return raw
+
 def bullets_html(text):
     lines  = [l.strip() for l in text.split("\n") if l.strip()]
     items  = [l for l in lines if l.startswith("•") or l.startswith("-")] or lines
@@ -295,34 +309,56 @@ if run:
         try:
             context = build_context_feedback(comments)
 
-            # ── Prompt 1: Bar chart insights ─────────────────
-            # DATA: 281 usable comments, classified by topic (Show/Performance: 195,
-            # Family/Children: 152, Duration: 62, Venue: 50, Interaction: 28,
-            # Costume: 26, Price: 24, Audio: 17, Food: 9)
-            # SENTIMENT: Positive 54% (152), Neutral 26% (74), Suggestions 20% (55)
+            # ── Compute topic counts from live data ──────────────
+            def _count(kws): return sum(has_kw(c, kws) for c in comments)
+            cnt_parking  = _count(['park','parking','car park','wayfinding','signage','navigate'])
+            cnt_age      = _count(['age','too young','older','suited','3 year','toddler','range','appropriate'])
+            cnt_price    = _count(['price','value','money','cost','expensive','afford','ticket'])
+            cnt_audio    = _count(['sound','audio','hear','loud','muffled','volume'])
+            cnt_catering = _count(['food','eat','cater','cafe','drink','snack','merch'])
+
+            # Build a live gaps summary for prompts
+            gaps_feedback = (
+                f"Top barriers by mention count (of {total} usable comments):\n"
+                f"  Parking/Wayfinding: {cnt_parking} mentions\n"
+                f"  Age Suitability/Range: {cnt_age} mentions\n"
+                f"  Price/Value: {cnt_price} mentions\n"
+                f"  Audio/Sound: {cnt_audio} mentions\n"
+                f"  Catering/Amenities: {cnt_catering} mentions\n"
+                f"  Suggestions/Negative total: {len(neg)} of {total} comments\n"
+                f"  Positive: {len(pos)} of {total} | Neutral: {len(neu)} of {total}"
+            )
+
+            # ── Prompt 1: Bar chart insights — topics distribution ──
             ai_insights = call_ai(api_key, model,
                 f"""You are an audience research analyst for Monkey Baa Theatre, Australia.
-Monkey Baa's Theory of Change: "We create and tour theatre productions and make it easier
-for young people to see our shows. Young people experience joy, feel included and grow curious."
+Theory of Change: "We create and tour theatre productions and make it easier
+for young people to see our shows."
 
-Based on {total} audience feedback comments ({len(pos)} positive / {len(neu)} neutral / {len(neg)} suggestions),
-return exactly 4 bullet points (starting with •) with bold labels in this format:
-• **Label:** insight text
+The bar chart shows how many comments mentioned each topic.
+Topic counts from {total} usable comments:
+  Show/Performance: {TOPIC_DATA['Show / Performance']} mentions
+  Family/Children: {TOPIC_DATA['Family / Children']} mentions
+  Duration/Timing: {TOPIC_DATA['Duration / Timing']} mentions
+  Venue & Access: {TOPIC_DATA['Venue & Access']} mentions
+  Interaction: {TOPIC_DATA['Interaction']} mentions
+  Costume/Design: {TOPIC_DATA['Costume / Design']} mentions
+  Price/Value: {TOPIC_DATA['Price / Value']} mentions
+  Audio/Sound: {TOPIC_DATA['Audio / Sound']} mentions
+  Food & Catering: {TOPIC_DATA['Food & Catering']} mentions
 
-Structure:
-• **Overall Sentiment:** [summarise the dominant tone with numbers, e.g. X of {total}]
-• **Most Praised:** [what audiences celebrated most — be specific to the comments]
-• **Logistical Barriers:** [operational issues raised — not artistic — with mention counts]
-• **Strategic Opportunity:** [one data-grounded recommendation to improve experience]
+Return exactly 4 bullet points (starting with •) with bold labels explaining WHAT THE CHART SHOWS:
+• **Dominant Topic:** [why Show/Performance dominates and what this means for the mission]
+• **Family Focus:** [what the Family/Children volume reveals about the audience profile]
+• **Operational Topics:** [what the cluster of Venue/Price/Audio/Food mentions signals]
+• **Engagement Gap:** [what low Interaction mentions suggest about audience expectations]
 
-RULE: Every % must show base — write "X% (N of {total})". No headers. No markdown beyond bold labels.""",
+Do NOT mention weaknesses or recommendations here — only interpret the chart topics.
+No headers. No markdown beyond bold labels.""",
                 context)
 
             # ── Prompt 2: TWO Weaknesses ──────────────────────
-            # DATA: Negative/suggestions comments (55 of 281)
-            # Key issues: Parking (12 mentions), Age clarity (11), Price (8),
-            # Audio (7), Catering (5)
-            ai_weak = call_ai(api_key, model,
+            ai_weak = call_ai_json(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
 Theory of Change: "Young people miss out due to geographic, financial or social barriers.
 Limited exposure to live performing arts restricts opportunities to engage, imagine, and grow."
@@ -330,12 +366,17 @@ Limited exposure to live performing arts restricts opportunities to engage, imag
 Based on {total} audience feedback comments, identify exactly 2 key weaknesses
 that create barriers to the audience experience and undermine the Theory of Change mission.
 
+LIVE DATA — barriers identified from the comments:
+{gaps_feedback}
+
+Derive your weaknesses from the data above. Do not invent or assume.
+
 Return ONLY this JSON, no markdown, no preamble:
 {{
   "weakness_1": {{
     "title": "Weakness title (5-7 words, specific to feedback data)",
     "points": [
-      "Specific finding with mention count (X of {total} comments / X% of {total})",
+      "Specific finding with mention count from the data (X of {total} comments)",
       "Why this creates a barrier as defined in the Theory of Change",
       "Which audience segment is most affected"
     ]
@@ -343,31 +384,30 @@ Return ONLY this JSON, no markdown, no preamble:
   "weakness_2": {{
     "title": "Weakness title (5-7 words, different focus from weakness 1)",
     "points": [
-      "Specific finding with mention count (X of {total} comments / X% of {total})",
+      "Specific finding with mention count from the data (X of {total} comments)",
       "Why this undermines the mission of making theatre accessible and enjoyable",
       "Risk to audience retention and repeat attendance if not addressed"
     ]
   }}
 }}
-Key data: Parking issues = 12 mentions, Age clarity = 11, Price concerns = 8,
-Audio quality = 7, Catering = 5. Total suggestions = {len(neg)} of {total}.
 Every % must include the base number.""",
                 context)
 
             # ── Prompt 3: Primary Recommendation ─────────────
-            # DATA: Same comment corpus — biggest barriers vs Theory of Change access goal
-            ai_rec = call_ai(api_key, model,
+            ai_rec = call_ai_json(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
 Theory of Change strategy: "We connect with young people and their communities by bringing
 high-quality theatre to them. We provide targeted access to theatre to young people in need."
 
-Based on {total} audience feedback comments, write ONE primary strategic recommendation
-that addresses the most impactful audience experience barrier.
+LIVE DATA — barriers from {total} comments:
+{gaps_feedback}
+
+Write ONE primary strategic recommendation addressing the most impactful barrier.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
   "title": "Recommendation title (5-8 words, action-oriented)",
-  "description": "3-4 sentences: (1) name the specific barrier with mention count (X of {total}),
+  "description": "3-4 sentences: (1) name the specific barrier with mention count from the data,
   (2) link to Theory of Change access strategy, (3) propose one concrete operational action,
   (4) state the expected improvement in audience reach or retention."
 }}
@@ -375,45 +415,46 @@ Every % must include the base number.""",
                 context)
 
             # ── Prompt 4: THREE Recommendation Details ────────
-            # DATA: Top 3 improvement areas from comments
-            # Parking (12), Age clarity (11), Price (8)
-            ai_recdet = call_ai(api_key, model,
+            ai_recdet = call_ai_json(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
 Theory of Change activities:
 - Touring extensively to provide regular theatre experiences across regional and urban Australia
 - Partnering with local organisations to connect with young people nationally
 - Making it easier for young people to see shows (removing barriers)
 
-Based on audience feedback from {total} comments, provide exactly 3 actionable recommendations
-targeting the top operational barriers identified.
+LIVE DATA — top barriers from {total} audience comments:
+{gaps_feedback}
+
+Based on the top 3 barriers above, provide exactly 3 actionable recommendations.
+Each must reference the actual mention count from the data.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
   "items": [
     {{
-      "title": "Improve Venue Navigation & Pre-Arrival Communication",
+      "title": "Action title addressing the top barrier (5-8 words)",
       "points": [
-        "Parking and wayfinding issues mentioned in 12 of {total} comments — send pre-show email with maps, parking links and directions",
-        "Directly addresses the Theory of Change goal of removing barriers to access"
+        "Specific action referencing the actual mention count from the data",
+        "How this advances the Theory of Change goal of removing access barriers"
       ]
     }},
     {{
-      "title": "Clarify Age Suitability & Sensory Warnings",
+      "title": "Action title addressing the second barrier (5-8 words)",
       "points": [
-        "Age range clarity raised in 11 of {total} comments — add clearer age guidance and sensory/loud scene warnings to all marketing",
-        "Ensures young people from diverse needs backgrounds can access shows confidently"
+        "Specific action referencing the actual mention count from the data",
+        "How this ensures young people from diverse backgrounds can access shows"
       ]
     }},
     {{
-      "title": "Introduce Family Pricing & Access Pathways",
+      "title": "Action title addressing the third barrier (5-8 words)",
       "points": [
-        "Price concerns raised in 8 of {total} comments — introduce family bundle pricing and subsidised tickets via Theatre Unlimited",
-        "Advances the Theory of Change goal of reducing financial barriers to live theatre access"
+        "Specific action referencing the actual mention count from the data",
+        "How this advances the Theory of Change goal of reducing financial barriers"
       ]
     }}
   ]
 }}
-Rewrite each point in your own words — use the baseline numbers but make language strategic.""",
+Use only mention counts from the data provided. Make language strategic.""",
                 context)
 
             # ── Prompt 5: Executive Summary (synthesises all) ─

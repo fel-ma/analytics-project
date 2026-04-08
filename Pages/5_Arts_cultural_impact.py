@@ -170,6 +170,7 @@ def compute_metrics(df):
         # Extra
         "happy_n":                int((happy == 1).sum()),
         "curious_n":              int((curious == 1).sum()),
+        "cult_aware_n":           int((cult_aware == 1).sum()),
         "imaginative_play_n":     int((imag_play == 1).sum()),
         "entertaining_high_n":    int((ent >= 8).sum()),
         "emotionally_high_n":     int((emp >= 7).sum()),
@@ -232,7 +233,7 @@ ADDITIONAL CULTURAL INDICATORS:
   Mean Belonging score: {m['bl_mean']}/10
 
 GAP INDICATORS (Theory of Change gaps):
-  Only {5}% became more aware of different cultures/viewpoints (32 of {n})
+  Only {round(m['cult_aware_n']/n*100)}% became more aware of different cultures/viewpoints ({m['cult_aware_n']} of {n})
   Only {m['confidence_pct']}% made explicit connections to their own life ({m['confidence_n']} of {n})
   Cultural learning is experiential but not always explicitly articulated by respondents
 """
@@ -377,8 +378,8 @@ Key data points to interpret:
 - {m['cultural_learning_pct']}% ({m['cultural_learning_n']} of {n}) rated Aesthetic Experience ≥7
 - {m['confidence_pct']}% ({m['confidence_n']} of {n}) made connections to their own life
 - {m['aus_stories_pct']}% ({m['aus_stories_n']} of {n}) already knew the Australian story
-- 92% (592 of {n}) felt Happy | 39% (249 of {n}) felt Curious
-- Only 5% (32 of {n}) became more aware of different cultures/viewpoints
+- {round(m['happy_n']/n*100)}% ({m['happy_n']} of {n}) felt Happy | {round(m['curious_n']/n*100)}% ({m['curious_n']} of {n}) felt Curious
+- Only {round(m['cult_aware_n']/n*100)}% ({m['cult_aware_n']} of {n}) became more aware of different cultures/viewpoints
 
 Return exactly 5 bullet points (starting with •). Each bullet must:
 - Start with a bold label in this format: **Label:** then the insight text
@@ -463,7 +464,7 @@ Return ONLY this JSON, no markdown, no preamble:
     ]
   }}
 }}
-Key gaps: only 5% (32 of {n}) became more aware of different cultures/viewpoints.
+Key gaps: only {round(m['cult_aware_n']/n*100)}% ({m['cult_aware_n']} of {n}) became more aware of different cultures/viewpoints.
 Only {m['confidence_pct']}% ({m['confidence_n']} of {n}) made explicit life connections.
 Mean Creativity {m['cr_mean']}/10 and Imagination {m['im_mean']}/10 — room for improvement.
 Every % must include the base number.""",
@@ -505,7 +506,7 @@ Return ONLY this JSON, no markdown, no preamble:
     {{
       "title": "Embed Cultural Reflection Moments",
       "points": [
-        "Specific action with current baseline (only 5% (32 of {n}) became culturally aware)",
+        "Specific action with current baseline (only {round(m['cult_aware_n']/n*100)}% ({m['cult_aware_n']} of {n}) became culturally aware)",
         "How guided prompts during/after performances make cultural learning intentional"
       ]
     }},
