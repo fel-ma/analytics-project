@@ -118,14 +118,28 @@ def build_context(df):
 
     return "\n".join(buf)
 
-def call_ai(api_key, model, system_prompt, context):
+def call_ai(api_key, model, system_prompt, context, max_tokens=800):
     r = OpenAI(api_key=api_key).chat.completions.create(
         model=model,
         messages=[{"role":"system","content":system_prompt},
                   {"role":"user","content":f"Data:\n{context}"}],
-        temperature=0.3, max_tokens=800,
+        temperature=0.1, max_tokens=max_tokens,
     )
     return r.choices[0].message.content.strip()
+
+def call_ai_json(api_key, model, system_prompt, context, max_tokens=1200):
+    """Call AI for JSON responses — strips markdown fences + higher token limit."""
+    import re as _rj
+    r = OpenAI(api_key=api_key).chat.completions.create(
+        model=model,
+        messages=[{"role":"system","content":system_prompt},
+                  {"role":"user","content":f"Data:\n{context}"}],
+        temperature=0.1, max_tokens=max_tokens,
+    )
+    raw = r.choices[0].message.content.strip()
+    raw = _rj.sub(r"^```(?:json)?\s*", "", raw)
+    raw = _rj.sub(r"\s*```\s*$", "", raw).strip()
+    return raw
 
 def bullets_html(text):
     lines = [l.strip() for l in text.split("\n") if l.strip()]
@@ -259,15 +273,24 @@ You are writing insights for the AUDIENCE TREND OVER TIME chart.
 Focus EXCLUSIVELY on temporal patterns — growth, peaks, drops, and what they mean
 for the mission of expanding access.
 
-Return exactly 4 bullet points (starting with •) that:
+Return exactly 4 bullet points (starting with •). Each bullet must be 2 sentences, 30-50 words total.
 1. Describe the overall trajectory using exact years and numbers from the data
 2. Identify the peak year with exact numbers and what drove that expansion of access
 3. Flag any year with decline or stagnation — what it means for continuity of access
 4. Connect the trend to the Theory of Change: is the program on track to embed
    arts access into the lives of more young Australians each year?
 
-RULE: Use only numbers that appear in the data. Every % must include base number.
-No headers. No markdown. Start each point with •.""",
+EXAMPLE of a good bullet (use this style and length):
+• Audience grew from 52,400 in 2021 to a peak of 98,700 in 2023 — an 88% increase over two years (98,700 of 351,772 total). This trajectory demonstrates the program's expanding capacity to embed live theatre into the lives of young Australians annually.
+
+EXAMPLE of a bad bullet (too vague, never do this):
+• The program grew a lot and reached more young people in recent years.
+
+STRICT RULES:
+- Use ONLY numbers that appear in the data. Every % must include base: write "X% (N of {total:,})".
+- Before writing each bullet, verify the number exists in the dataset.
+- If a number is not in the data, write "data not available" — never estimate.
+- No headers. No markdown. Start each point with •.""",
                 context)
 
             # ── Prompt 2: Metro/Regional/Remote pie chart ────────
@@ -277,14 +300,20 @@ Monkey Baa's Theory of Change states: "There is greater equity in cultural acces
 Our focus on removing barriers ensures young people from communities experiencing entrenched
 disadvantage gain equal opportunities to engage in the arts."
 
-Analyse the geographic distribution in the data and return exactly 4 bullet points (starting with •) that:
+Analyse the geographic distribution in the data and return exactly 4 bullet points (starting with •).
+Each bullet must be 2 sentences, 30-50 words total:
 1. Describe the Metro vs Regional vs Remote split — what it means for equity of access
 2. Identify which region type most aligns with the Theory of Change mission and why
 3. Name the most underserved geographic segment with exact numbers from the data
 4. Give one specific recommendation to improve geographic equity, grounded in the data
 
-RULE: Every % must include base number — write "X% (N of {total:,} young people)".
-Use only numbers from the data provided. No headers. No markdown. Start each point with •.""",
+EXAMPLE of a good bullet (use this style):
+• Remote communities received only 3,200 young people (0.9% of {total:,}), the smallest share of any region type. This critical gap directly undermines the Theory of Change goal of equitable access for young people facing geographic disadvantage.
+
+STRICT RULES:
+- Every % must include base: write "X% (N of {total:,} young people)".
+- Before writing each bullet, verify the number exists in the dataset — if not, write "data not available".
+- No headers. No markdown. Start each point with •.""",
                 context)
 
             # ── Prompt 3: State table ────────────────────────────
@@ -296,7 +325,7 @@ with particular attention to states where access to live theatre is most limited
 You are providing insights for the STATE BREAKDOWN TABLE — focus exclusively on
 which states are performing well vs underserved, and what it means for equitable access.
 
-Return exactly 4 bullet points (starting with •) that:
+Return exactly 4 bullet points (starting with •). Each bullet must be 2 sentences, 30-50 words total:
 1. Name the top performing states with exact numbers and what % of total they represent
 2. Identify the most underserved states with exact numbers and what barrier this represents
 3. Compare performances delivered vs audience size between states —
@@ -304,8 +333,13 @@ Return exactly 4 bullet points (starting with •) that:
 4. Suggest which state should be prioritised next to advance geographic equity,
    with a specific rationale from the data
 
-RULE: Every % must include base — write "X% (N of {total:,} young people)".
-Use only numbers from the data. No headers. No markdown. Start each point with •.""",
+EXAMPLE of a good bullet (use this style):
+• NSW led with 142,300 young people reached (40.5% of {total:,}), followed by VIC at 89,400 (25.4% of {total:,}). Together these two states account for two-thirds of total access, creating a geographic concentration risk for the program's equity mission.
+
+STRICT RULES:
+- Every % must include base: write "X% (N of {total:,} young people)".
+- Before writing each bullet, verify the number exists in the dataset — if not, write "data not available".
+- No headers. No markdown. Start each point with •.""",
                 context)
 
             st.session_state["ar_main"]   = insights_main
@@ -313,7 +347,7 @@ Use only numbers from the data. No headers. No markdown. Start each point with �
             st.session_state["ar_states"] = insights_states
 
             # ── Prompt 4: Weaknesses (JSON) ──────────────────────
-            insights_weak = call_ai(api_key, model,
+            insights_weak = call_ai_json(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
 Monkey Baa's Theory of Change identifies these barriers to access:
 "Young people miss out due to geographic, financial or social barriers.
@@ -322,34 +356,37 @@ Limited exposure to live performing arts restricts opportunities to engage, imag
 KEY DATA GAPS FROM THE CURRENT DATASET:
 {gaps_str}
 
-Based ONLY on the data provided, identify exactly 2 weaknesses that directly undermine
-the Theory of Change mission. Derive your findings from the data — do not assume or invent.
+From all gaps in the data, select the 2 weaknesses with the largest gap between current
+reach and Theory of Change target. Weakness 1 must be geographic. Weakness 2 must be
+demographic or programmatic. Rank by scale of impact on young people missed.
+Derive your findings from the data — do not assume or invent.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
   "weakness_1": {{
     "title": "Weakness title (5-7 words, derived from the data)",
     "points": [
-      "Specific finding with exact number from the data (X of {total:,} young people / X%)",
+      "Specific finding with exact number from the data (X of {total:,} young people / X% of {total:,})",
       "Why this undermines the Theory of Change access goal",
-      "Which communities are most affected"
+      "Which communities are most affected and scale of the gap"
     ]
   }},
   "weakness_2": {{
     "title": "Weakness title (5-7 words, different focus from weakness 1)",
     "points": [
-      "Specific finding with exact number from the data (X of {total:,} young people / X%)",
+      "Specific finding with exact number from the data (X of {total:,} young people / X% of {total:,})",
       "Why this represents a barrier as defined in the Theory of Change",
-      "Risk to long-term mission if not addressed"
+      "Risk to long-term mission if not addressed — be specific about the consequence"
     ]
   }}
 }}
-Every % MUST include the base: write "X% (N of {total:,})" not just "X%".""",
+STRICT: Every % MUST include the base: write "X% (N of {total:,})".
+If a number is not in the dataset, write "data not available" — never estimate.""",
                 context)
             st.session_state["ar_weak"] = insights_weak
 
             # ── Prompt 5: Primary Recommendation (JSON) ──────────
-            insights_rec = call_ai(api_key, model,
+            insights_rec = call_ai_json(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
 Monkey Baa's Theory of Change strategy: "Expand access to theatre for more young people.
 We provide targeted access to theatre to young people in need via Theatre Unlimited.
@@ -359,21 +396,21 @@ KEY DATA GAPS FROM THE CURRENT DATASET:
 {gaps_str}
 
 Based on the data gaps above, write ONE primary strategic recommendation that
-directly advances the Theory of Change access strategy.
+directly advances the Theory of Change access strategy. Choose the gap with the
+largest number of young people missed.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
-  "title": "Recommendation title (5-8 words, action-oriented)",
-  "description": "3-4 sentences that: (1) name the specific data gap with exact numbers
-  from the dataset, (2) link it to the Theory of Change strategy,
-  (3) propose a concrete action, (4) state the expected outcome in terms of young people reached."
+  "title": "Recommendation title (5-8 words, action-oriented verb first)",
+  "description": "3-4 sentences: (1) name the specific data gap with exact numbers from the dataset (X of {total:,}), (2) link it explicitly to one Theory of Change strategy activity, (3) propose one concrete and measurable action, (4) state the expected outcome in terms of additional young people reached."
 }}
-Every % must include the base number. Use only data from the dataset.""",
+STRICT: Every % must include the base number. Use only numbers from the dataset.
+If a number is not in the data, write "data not available" — never estimate.""",
                 context)
             st.session_state["ar_rec"] = insights_rec
 
             # ── Prompt 6: Recommendation Details (JSON) ───────────
-            insights_recdet = call_ai(api_key, model,
+            insights_recdet = call_ai_json(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, an Australian children's theatre company.
 Monkey Baa's Theory of Change activities include:
 - Touring extensively to provide regular theatre experiences across regional and urban Australia
@@ -384,89 +421,43 @@ Monkey Baa's Theory of Change activities include:
 KEY DATA GAPS FROM THE CURRENT DATASET:
 {gaps_str}
 
-Based on the data gaps above, provide exactly 3 detailed actionable recommendations
-that each directly address a Theory of Change activity or output gap.
-Each recommendation must reference actual baseline numbers from the current dataset.
+Based on the data gaps above, provide exactly 3 detailed actionable recommendations.
+Each must directly address a different Theory of Change activity or output gap.
+Each must reference actual baseline numbers from the current dataset.
+Choose 3 different gaps — do not repeat the primary recommendation topic.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
   "items": [
     {{
-      "title": "Action title (5-8 words, ties to ToC activity)",
+      "title": "Action title (5-8 words, ties to ToC activity, verb first)",
       "points": [
-        "Specific action with current baseline number from the data",
-        "How this advances the Theory of Change output metric"
+        "Specific action with current baseline number from the data (X of {total:,})",
+        "How this advances the Theory of Change output metric — be specific about the target"
       ]
     }},
     {{
-      "title": "Action title (5-8 words, ties to ToC activity)",
+      "title": "Action title (5-8 words, ties to ToC activity, verb first)",
       "points": [
-        "Specific action with current baseline number from the data",
-        "How this addresses the Theory of Change access barrier"
+        "Specific action with current baseline number from the data (X of {total:,})",
+        "How this addresses the Theory of Change access barrier — name the barrier explicitly"
       ]
     }},
     {{
-      "title": "Action title (5-8 words, ties to ToC activity)",
+      "title": "Action title (5-8 words, ties to ToC activity, verb first)",
       "points": [
-        "Specific action targeting underserved segment from the data",
-        "How this advances the Theory of Change equity goal"
+        "Specific action targeting underserved segment from the data (X of {total:,})",
+        "How this advances the Theory of Change equity goal — state the expected change"
       ]
     }}
   ]
 }}
-Every % must include the base number. Use only data from the dataset.""",
+STRICT: Every % must include the base number. Use only numbers from the dataset.
+If a number is not in the data, write "data not available" — never estimate.""",
                 context)
             st.session_state["ar_recdet"] = insights_recdet
 
             # ── Prompt 7: Executive Summary (synthesises ALL) ─────
-            page_synthesis = f"""
-=== RAW DATA CONTEXT ===
-{context}
-
-=== TREND INSIGHTS (line chart) ===
-{insights_main}
-
-=== STATE TABLE INSIGHTS ===
-{insights_states}
-
-=== GEOGRAPHIC EQUITY INSIGHTS (pie chart) ===
-{insights_region}
-
-=== KEY WEAKNESSES IDENTIFIED ===
-{insights_weak}
-
-=== PRIMARY RECOMMENDATION ===
-{insights_rec}
-
-=== DETAILED RECOMMENDATIONS ===
-{insights_recdet}
-"""
-            insights_summary = call_ai(api_key, model,
-                f"""You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
-Access & Audience Reach report. This paragraph appears at the bottom of the full report
-and must synthesise ALL findings from the page — trends, state breakdown, geographic
-equity, weaknesses, and recommendations. It is a strategic conclusion, not a data recap.
-
-Monkey Baa's Theory of Change mission:
-"To uplift young Australians by embedding the arts into their formative years.
-To ensure all young people have equitable access to creative experiences
-that shape their identity, confidence, and connection to others."
-
-Write ONE cohesive paragraph of 6-7 sentences that:
-1. Opens with the headline achievement using exact numbers from the data
-2. Captures the key trend story: growth trajectory and peak year
-3. Addresses geographic equity using exact numbers from the data
-4. Names the most critical weakness and links it to a specific Theory of Change barrier
-5. Summarises the strategic direction from the recommendations in one sentence
-6. Closes with a forward-looking statement tied to the Theory of Change horizon:
-   "greater equity in cultural access across Australia"
-
-Use only numbers that appear in the data provided. Every % must include the base.
-Professional, warm tone. No headers. No bullet points.""",
-                page_synthesis)
-            st.session_state["ar_summary"] = insights_summary
-
-            # ── Summary — synthesises ALL page content ──
             page_synthesis = f"""
 === RAW DATA ===
 {context}
@@ -490,31 +481,34 @@ Professional, warm tone. No headers. No bullet points.""",
 {insights_recdet}
 """
             insights_summary = call_ai(api_key, model,
-                """You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
+                f"""You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
 Access & Audience Reach report. This paragraph appears at the bottom of the full report
-and must synthesise ALL findings from the page — trends, state breakdown, geographic
-equity, weaknesses, and recommendations. It is a strategic conclusion, not a data recap.
+and must synthesise ALL findings into a board-quality strategic conclusion — not a recap.
 
 Monkey Baa's Theory of Change mission:
 "To uplift young Australians by embedding the arts into their formative years.
 To ensure all young people have equitable access to creative experiences
 that shape their identity, confidence, and connection to others."
 
-Write ONE cohesive paragraph of 6-7 sentences that:
-1. Opens with the headline achievement — total young people reached and what it
-   means for the Theory of Change mission (use exact numbers)
+Before writing, silently identify:
+(a) The single most impressive number from the data — total reach and growth
+(b) The biggest geographic gap vs the Theory of Change equity goal
+(c) The one recommendation most likely to close that gap
+
+Then write ONE cohesive paragraph of 6-7 sentences using those three anchors:
+1. Opens with the headline achievement — total young people reached (use exact numbers)
 2. Captures the key trend story: growth trajectory and peak year
 3. Addresses geographic equity — who was reached well and who was left behind
-   (use "X% (N of 351,772)" for all percentages)
+   (write all percentages as "X% (N of {total:,})")
 4. Names the most critical weakness and links it to a specific Theory of Change barrier
 5. Summarises the strategic direction from the recommendations in one sentence
 6. Closes with a forward-looking statement tied to the Theory of Change horizon:
    "greater equity in cultural access across Australia"
 
-This must land with weight as the final word a board member reads — not a bullet list
-summary but a purposeful, board-quality conclusion.
+This must land with weight as the final word a board member reads.
 Professional, warm tone. No headers. No bullet points.""",
-                page_synthesis)
+                page_synthesis,
+                max_tokens=900)
             st.session_state["ar_summary"] = insights_summary
         except Exception as e:
             st.error(f"API error: {e}")

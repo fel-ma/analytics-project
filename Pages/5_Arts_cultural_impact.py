@@ -244,7 +244,7 @@ def call_ai(api_key, model, system_prompt, context, max_tokens=800):
         model=model,
         messages=[{"role":"system","content":system_prompt},
                   {"role":"user","content":f"Data:\n{context}"}],
-        temperature=0.3, max_tokens=max_tokens,
+        temperature=0.1, max_tokens=max_tokens,
     )
     return r.choices[0].message.content.strip()
 
@@ -256,7 +256,7 @@ def call_ai_json(api_key, model, system_prompt, context, max_tokens=1200):
         model=model,
         messages=[{"role":"system","content":system_prompt},
                   {"role":"user","content":f"Data:\n{context}"}],
-        temperature=0.2, max_tokens=max_tokens,
+        temperature=0.1, max_tokens=max_tokens,
     )
     raw = r.choices[0].message.content.strip()
     # Strip markdown code fences if AI wrapped in ```json ... ```
@@ -371,7 +371,7 @@ Cultural Outcomes (Growth):
 "Young people develop a growing appreciation for theatre and the arts."
 "Young people build increased cultural literacy and openness."
 
-You are writing the INSIGHT INTERPRETATION section — interpret WHAT THE KPIs MEAN
+You are writing the INSIGHT INTERPRETATION section — explain WHAT THE KPIs MEAN
 culturally. Do NOT repeat numbers mechanically — explain the significance.
 
 Key data points to interpret:
@@ -381,19 +381,25 @@ Key data points to interpret:
 - {round(m['happy_n']/n*100)}% ({m['happy_n']} of {n}) felt Happy | {round(m['curious_n']/n*100)}% ({m['curious_n']} of {n}) felt Curious
 - Only {round(m['cult_aware_n']/n*100)}% ({m['cult_aware_n']} of {n}) became more aware of different cultures/viewpoints
 
-Return exactly 5 bullet points (starting with •). Each bullet must:
-- Start with a bold label in this format: **Label:** then the insight text
-- Be 1-2 sentences that explain cultural significance, not just restate numbers
-- Reference a Theory of Change outcome explicitly
-
-Structure:
+Return exactly 5 bullet points (starting with •). Each bullet must be 2 sentences, 30-50 words total.
+Use these bold labels exactly:
 • **Strong Cultural Reach:** [interpret aesthetic experience score culturally]
 • **Identity & Belonging:** [interpret connections to own life + belonging score]
 • **Australian Story Recognition:** [interpret prior knowledge culturally]
 • **Emotional Engagement:** [interpret Happy + Curious emotions as cultural outcomes]
-• **Cultural Gap:** [identify what is NOT yet being achieved — use the 5% stat]
+• **Cultural Gap:** [identify what is NOT yet being achieved — use the culture awareness stat]
 
-RULE: Every % must show base — write "X% (N of {n})". Start with •.""",
+EXAMPLE of a good bullet (use this style and length):
+• **Strong Cultural Reach:** {m['cultural_learning_pct']}% ({m['cultural_learning_n']} of {n}) rating Aesthetic Experience ≥7 signals that Monkey Baa's productions are delivering a genuine artistic encounter — not just entertainment. This aligns directly with the Theory of Change outcome of young people developing a growing appreciation for theatre and the arts.
+
+EXAMPLE of a bad bullet (too vague, never do this):
+• **Strong Cultural Reach:** Many young people really enjoyed the show and had a good experience.
+
+STRICT RULES:
+- Every % must show base: write "X% (N of {n})".
+- Before writing each bullet, verify the number exists in the data above.
+- Reference a specific Theory of Change outcome in every bullet.
+- Start each point with •.""",
                 ctx)
 
             # 2 — AI-Generated Sentiment Table
@@ -438,59 +444,65 @@ Return ONLY valid JSON. No markdown. No preamble. No backticks:
                 ctx, max_tokens=1000)
 
             # 3 — TWO Weaknesses
-            ai_weak = call_ai(api_key, model,
+            ai_weak = call_ai_json(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
 Theory of Change cultural gap: "Young people do not see their diverse experiences
 reflected in stories. A lack of representation diminishes their sense of belonging."
 
 Based on the cultural impact survey data, identify exactly 2 key weaknesses.
+Select the 2 gaps with the largest distance between current result and Theory of Change target.
+Weakness 1 must address cultural awareness or representation. Weakness 2 must address
+self-expression or identity connection. Derive findings from the data — do not invent.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
   "weakness_1": {{
     "title": "Weakness title (5-7 words, data-specific)",
     "points": [
-      "Specific finding with number (X of {n} / X% of {n})",
-      "Why this undermines the Theory of Change cultural outcomes goal",
-      "Which audience segment or cultural outcome is most at risk"
+      "Specific finding with number (X of {n} / X% of {n}) — cite the exact metric",
+      "Why this undermines the Theory of Change cultural outcomes goal — be explicit",
+      "Which audience segment or cultural outcome is most at risk and why"
     ]
   }},
   "weakness_2": {{
     "title": "Weakness title (5-7 words, different focus from weakness 1)",
     "points": [
-      "Specific finding with number (X of {n} / X% of {n})",
-      "Why this represents a barrier as defined in the Theory of Change",
-      "Risk to long-term cultural mission if not addressed"
+      "Specific finding with number (X of {n} / X% of {n}) — cite the exact metric",
+      "Why this represents a barrier as defined in the Theory of Change — name the specific outcome",
+      "Risk to long-term cultural mission if not addressed — state the consequence clearly"
     ]
   }}
 }}
-Key gaps: only {round(m['cult_aware_n']/n*100)}% ({m['cult_aware_n']} of {n}) became more aware of different cultures/viewpoints.
-Only {m['confidence_pct']}% ({m['confidence_n']} of {n}) made explicit life connections.
-Mean Creativity {m['cr_mean']}/10 and Imagination {m['im_mean']}/10 — room for improvement.
-Every % must include the base number.""",
+Key gaps for reference:
+- Only {round(m['cult_aware_n']/n*100)}% ({m['cult_aware_n']} of {n}) became more aware of different cultures/viewpoints
+- Only {m['confidence_pct']}% ({m['confidence_n']} of {n}) made explicit life connections
+- Mean Creativity {m['cr_mean']}/10 and Imagination {m['im_mean']}/10
+
+STRICT: Every % must include the base: write "X% (N of {n})".
+Use only numbers from the dataset — never estimate or extrapolate.""",
                 ctx)
 
             # 4 — Primary Recommendation
-            ai_rec = call_ai(api_key, model,
+            ai_rec = call_ai_json(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
 Theory of Change cultural strategy: "We create theatre experiences that support emotional growth.
 We develop and present original Australian theatre that reflects the diversity of young audiences.
 We ensure our stories reflect a broad range of young people's lived experiences."
 
 Based on the cultural impact data gaps, write ONE primary strategic recommendation.
+Choose the gap with the largest distance between current result and Theory of Change target.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
-  "title": "Recommendation title (5-8 words, action-oriented)",
-  "description": "3-4 sentences: (1) name the specific data gap with numbers (X of {n}),
-  (2) link to Theory of Change cultural strategy, (3) propose concrete action,
-  (4) state expected cultural outcome for young people."
+  "title": "Recommendation title (5-8 words, action-oriented verb first)",
+  "description": "3-4 sentences: (1) name the specific data gap with exact numbers (X of {n} / X% of {n}), (2) link explicitly to one Theory of Change cultural strategy, (3) propose one concrete and measurable action, (4) state the expected cultural outcome for young people."
 }}
-Every % must include the base number.""",
+STRICT: Every % must include the base: write "X% (N of {n})".
+Use only numbers from the dataset — never estimate.""",
                 ctx)
 
             # 5 — THREE Recommendation Details
-            ai_recdet = call_ai(api_key, model,
+            ai_recdet = call_ai_json(api_key, model,
                 f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
 Theory of Change cultural activities:
 - Creating theatre experiences that foster empathy through shared emotional storytelling
@@ -498,35 +510,38 @@ Theory of Change cultural activities:
 - Making young people feel seen and respected as legitimate participants in cultural life
 - Building a generation of lifelong arts engagers
 
-Provide exactly 3 detailed actionable recommendations addressing cultural impact gaps.
+Based on the 3 largest cultural impact gaps, provide exactly 3 detailed actionable
+recommendations. Each must address a different gap. Write your own titles — do not
+use generic placeholders. Each must reference actual baseline numbers from the data.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
   "items": [
     {{
-      "title": "Embed Cultural Reflection Moments",
+      "title": "Action title addressing gap 1 (5-8 words, verb first)",
       "points": [
-        "Specific action with current baseline (only {round(m['cult_aware_n']/n*100)}% ({m['cult_aware_n']} of {n}) became culturally aware)",
-        "How guided prompts during/after performances make cultural learning intentional"
+        "Specific action with current baseline (only {round(m['cult_aware_n']/n*100)}% ({m['cult_aware_n']} of {n}) became culturally aware) — state what will change",
+        "How this advances the Theory of Change cultural outcome — name the specific outcome"
       ]
     }},
     {{
-      "title": "Reinforce Through Creative Expression",
+      "title": "Action title addressing gap 2 (5-8 words, verb first)",
       "points": [
-        "Activities like role-play, drawing, storytelling linked to current gap ({m['confidence_pct']}% of {n} made life connections)",
-        "How this strengthens confidence, self-expression and makes cultural outcomes visible"
+        "Specific action with current baseline ({m['confidence_pct']}% ({m['confidence_n']} of {n}) made life connections) — state what will change",
+        "How this strengthens the Theory of Change goal — name the specific cultural benefit"
       ]
     }},
     {{
-      "title": "Strengthen Australian Story Representation",
+      "title": "Action title addressing gap 3 (5-8 words, verb first)",
       "points": [
-        "Build on {m['aus_stories_pct']}% ({m['aus_stories_n']} of {n}) prior story recognition — deepen cultural diversity",
+        "Specific action with current baseline ({m['aus_stories_pct']}% ({m['aus_stories_n']} of {n}) recognised the Australian story) — state what will change",
         "How this advances the Theory of Change goal of enriched and diversified Australian storytelling"
       ]
     }}
   ]
 }}
-Rewrite each point in your own words — use the baseline numbers but make the language strategic.""",
+STRICT: Use only numbers from the dataset above. Never estimate or extrapolate.
+Write each title and point in your own strategic language — do not copy placeholder text.""",
                 ctx)
 
             # 6 — Summary (synthesises everything — called last)
@@ -552,23 +567,28 @@ Rewrite each point in your own words — use the baseline numbers but make the l
             ai_summary = call_ai(api_key, model,
                 f"""You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
 Arts & Cultural Impact report. It appears at the bottom and must synthesise ALL
-page findings into a strategic board-level conclusion.
+page findings into a strategic board-level conclusion — not a data recap.
 
 Monkey Baa's Theory of Change cultural mission:
 "Australian storytelling is enriched and diversified."
 "A generation of lifelong arts engagers is cultivated."
 "Young people build increased cultural literacy and openness."
 
-Write ONE cohesive paragraph of 6-7 sentences that:
+Before writing, silently identify:
+(a) The single strongest cultural achievement — the KPI with the highest result
+(b) The most critical cultural gap — the metric furthest from the Theory of Change target
+(c) The recommendation most directly tied to closing that gap
+
+Then write ONE cohesive paragraph of 6-7 sentences using those three anchors:
 1. Opens with the headline cultural achievement (use exact numbers: X% (N of {n}))
 2. Captures the emotional and social cultural impact (Happy, Curious, Belonging)
 3. Addresses Australian story reach and representation data
-4. Names the most critical cultural gaps and links to Theory of Change barriers
+4. Names the most critical cultural gap and links it explicitly to a Theory of Change barrier
 5. Summarises the strategic direction across the 3 recommendations in one sentence
 6. Closes with the Theory of Change horizon: "a generation of lifelong arts engagers"
 
 Board-quality conclusion. No headers. No bullet points.""",
-                page_synthesis, max_tokens=600)
+                page_synthesis, max_tokens=900)
 
             st.session_state["aci_interpret"] = ai_interpret
             st.session_state["aci_sentiment"] = ai_sentiment

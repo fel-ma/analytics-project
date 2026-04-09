@@ -141,23 +141,23 @@ Total usable comments: {len(comments)}
 SAMPLE COMMENTS (first 120):
 """ + "\n---\n".join(sample)
 
-def call_ai(api_key, model, system_prompt, context):
+def call_ai(api_key, model, system_prompt, context, max_tokens=800):
     r = OpenAI(api_key=api_key).chat.completions.create(
         model=model,
         messages=[{"role":"system","content":system_prompt},
                   {"role":"user","content":f"Data:\n{context}"}],
-        temperature=0.3, max_tokens=700,
+        temperature=0.1, max_tokens=max_tokens,
     )
     return r.choices[0].message.content.strip()
 
-def call_ai_json(api_key, model, system_prompt, context):
+def call_ai_json(api_key, model, system_prompt, context, max_tokens=1200):
     """Call AI for JSON responses — higher token limit + strips markdown fences."""
     import re as _rj
     r = OpenAI(api_key=api_key).chat.completions.create(
         model=model,
         messages=[{"role":"system","content":system_prompt},
                   {"role":"user","content":f"Data:\n{context}"}],
-        temperature=0.2, max_tokens=1200,
+        temperature=0.1, max_tokens=max_tokens,
     )
     raw = r.choices[0].message.content.strip()
     raw = _rj.sub(r"^```(?:json)?\s*", "", raw)
@@ -220,17 +220,24 @@ IMPROVEMENT_AREAS = [
     },
 ]
 
-TOPIC_DATA = {
-    "Show / Performance": 195,
-    "Family / Children":  152,
-    "Duration / Timing":   62,
-    "Venue & Access":      50,
-    "Interaction":         28,
-    "Costume / Design":    26,
-    "Price / Value":       24,
-    "Audio / Sound":       17,
-    "Food & Catering":      9,
+TOPIC_KW = {
+    "Show / Performance": ['show','performance','acting','singing','dancing','cast','actor','stage','set','costum','music','song','script','story','charact'],
+    "Family / Children":  ['child','kid','daughter','son','grandchild','family','toddler','baby','little one','young','age','parent','mum','dad'],
+    "Duration / Timing":  ['long','short','duration','time','minut','hour','length','quick','too brief','too long','timing','schedule'],
+    "Venue & Access":     ['venue','seat','park','parking','access','toilet','bathroom','facility','locati','sign','wayfind','navigate','enter','exit'],
+    "Interaction":        ['interact','particip','engage','involve','join in','q&a','question','hands.on','touch'],
+    "Costume / Design":   ['costum','design','props','set design','visual','colour','color','light','puppet'],
+    "Price / Value":      ['price','ticket','cost','expens','value','money','afford','cheap','dear','worth'],
+    "Audio / Sound":      ['sound','audio','hear','loud','quiet','muffled','volume','speaker','mic'],
+    "Food & Catering":    ['food','eat','cater','cafe','drink','snack','merch','merchandise','shop','buy'],
 }
+
+def compute_topic_data(comments):
+    """Calculate topic mention counts dynamically from the loaded comments."""
+    counts = {}
+    for topic, kws in TOPIC_KW.items():
+        counts[topic] = sum(has_kw(c, kws) for c in comments)
+    return counts
 
 
 # ─────────────────────────────────────────────────────────
@@ -271,6 +278,9 @@ if df_survey is None:
 comments = load_comments(df_survey)
 pos, neu, neg = classify_sentiment(comments)
 total = len(comments)
+
+# ── Compute topic data dynamically from the loaded CSV ────
+TOPIC_DATA = compute_topic_data(comments)
 
 # ─────────────────────────────────────────────────────────
 # KPI CARDS — Sentiment
@@ -336,7 +346,7 @@ Theory of Change: "We create and tour theatre productions and make it easier
 for young people to see our shows."
 
 The bar chart shows how many comments mentioned each topic.
-Topic counts from {total} usable comments:
+Topic counts calculated from {total} usable comments loaded from the current survey file:
   Show/Performance: {TOPIC_DATA['Show / Performance']} mentions
   Family/Children: {TOPIC_DATA['Family / Children']} mentions
   Duration/Timing: {TOPIC_DATA['Duration / Timing']} mentions
@@ -347,14 +357,23 @@ Topic counts from {total} usable comments:
   Audio/Sound: {TOPIC_DATA['Audio / Sound']} mentions
   Food & Catering: {TOPIC_DATA['Food & Catering']} mentions
 
-Return exactly 4 bullet points (starting with •) with bold labels explaining WHAT THE CHART SHOWS:
+Return exactly 4 bullet points (starting with •). Each bullet must be 2 sentences, 30-50 words total.
+Use these bold labels exactly:
 • **Dominant Topic:** [why Show/Performance dominates and what this means for the mission]
 • **Family Focus:** [what the Family/Children volume reveals about the audience profile]
 • **Operational Topics:** [what the cluster of Venue/Price/Audio/Food mentions signals]
 • **Engagement Gap:** [what low Interaction mentions suggest about audience expectations]
 
-Do NOT mention weaknesses or recommendations here — only interpret the chart topics.
-No headers. No markdown beyond bold labels.""",
+EXAMPLE of a good bullet (use this style and length):
+• **Dominant Topic:** Show/Performance attracted {TOPIC_DATA['Show / Performance']} mentions — the highest of any category — confirming audiences came primarily to evaluate the artistic experience. This aligns with Monkey Baa's mission: making it easier for young people to see high-quality shows.
+
+EXAMPLE of a bad bullet (too vague, never do this):
+• **Dominant Topic:** The show was the most talked about topic and people liked it.
+
+STRICT RULES:
+- Use ONLY the numbers provided above — do not invent or extrapolate.
+- Do NOT mention weaknesses or recommendations here — only interpret the chart topics.
+- No headers. No markdown beyond the bold labels shown above.""",
                 context)
 
             # ── Prompt 2: TWO Weaknesses ──────────────────────
@@ -363,34 +382,20 @@ No headers. No markdown beyond bold labels.""",
 Theory of Change: "Young people miss out due to geographic, financial or social barriers.
 Limited exposure to live performing arts restricts opportunities to engage, imagine, and grow."
 
-Based on {total} audience feedback comments, identify exactly 2 key weaknesses
-that create barriers to the audience experience and undermine the Theory of Change mission.
-
-LIVE DATA — barriers identified from the comments:
+LIVE DATA — barrier mention counts from {total} comments:
 {gaps_feedback}
 
-Derive your weaknesses from the data above. Do not invent or assume.
+Select the 2 barriers with the highest mention count.
+Each weakness needs: a short title, then 3 written sentences (not placeholders):
+  point 1 — the finding with exact count e.g. "Parking raised concerns in 12 of {total} comments (X%)"
+  point 2 — why this is a Theory of Change access barrier
+  point 3 — which audience segment is most affected and the retention risk
 
-Return ONLY this JSON, no markdown, no preamble:
+Return ONLY valid JSON:
 {{
-  "weakness_1": {{
-    "title": "Weakness title (5-7 words, specific to feedback data)",
-    "points": [
-      "Specific finding with mention count from the data (X of {total} comments)",
-      "Why this creates a barrier as defined in the Theory of Change",
-      "Which audience segment is most affected"
-    ]
-  }},
-  "weakness_2": {{
-    "title": "Weakness title (5-7 words, different focus from weakness 1)",
-    "points": [
-      "Specific finding with mention count from the data (X of {total} comments)",
-      "Why this undermines the mission of making theatre accessible and enjoyable",
-      "Risk to audience retention and repeat attendance if not addressed"
-    ]
-  }}
-}}
-Every % must include the base number.""",
+  "weakness_1": {{"title": "...", "points": ["...", "...", "..."]}},
+  "weakness_2": {{"title": "...", "points": ["...", "...", "..."]}}
+}}""",
                 context)
 
             # ── Prompt 3: Primary Recommendation ─────────────
@@ -402,16 +407,16 @@ high-quality theatre to them. We provide targeted access to theatre to young peo
 LIVE DATA — barriers from {total} comments:
 {gaps_feedback}
 
-Write ONE primary strategic recommendation addressing the most impactful barrier.
+Write ONE primary strategic recommendation addressing the barrier with the highest mention count.
+Choose the gap most directly linked to a Theory of Change access activity.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
-  "title": "Recommendation title (5-8 words, action-oriented)",
-  "description": "3-4 sentences: (1) name the specific barrier with mention count from the data,
-  (2) link to Theory of Change access strategy, (3) propose one concrete operational action,
-  (4) state the expected improvement in audience reach or retention."
+  "title": "Recommendation title (5-8 words, action-oriented verb first)",
+  "description": "3-4 sentences: (1) name the specific barrier with its exact mention count (X of {total} comments), (2) link explicitly to one Theory of Change access strategy, (3) propose one concrete and measurable operational action, (4) state the expected improvement in audience reach or retention."
 }}
-Every % must include the base number.""",
+STRICT: Every % must include the base: write "X% (X of {total})".
+Use only mention counts from the data above — never estimate.""",
                 context)
 
             # ── Prompt 4: THREE Recommendation Details ────────
@@ -425,36 +430,37 @@ Theory of Change activities:
 LIVE DATA — top barriers from {total} audience comments:
 {gaps_feedback}
 
-Based on the top 3 barriers above, provide exactly 3 actionable recommendations.
-Each must reference the actual mention count from the data.
+Based on the top 3 barriers by mention count, provide exactly 3 actionable recommendations.
+Each must address a different barrier. Each must reference the actual mention count from the data.
+Write titles in your own words — do not use generic placeholders.
 
 Return ONLY this JSON, no markdown, no preamble:
 {{
   "items": [
     {{
-      "title": "Action title addressing the top barrier (5-8 words)",
+      "title": "Action title addressing barrier 1 (5-8 words, verb first)",
       "points": [
-        "Specific action referencing the actual mention count from the data",
-        "How this advances the Theory of Change goal of removing access barriers"
+        "Specific action referencing the exact mention count from the data (X of {total} comments)",
+        "How this advances the Theory of Change goal of removing access barriers — name the barrier"
       ]
     }},
     {{
-      "title": "Action title addressing the second barrier (5-8 words)",
+      "title": "Action title addressing barrier 2 (5-8 words, verb first)",
       "points": [
-        "Specific action referencing the actual mention count from the data",
-        "How this ensures young people from diverse backgrounds can access shows"
+        "Specific action referencing the exact mention count from the data (X of {total} comments)",
+        "How this ensures young people from diverse backgrounds can access shows — be concrete"
       ]
     }},
     {{
-      "title": "Action title addressing the third barrier (5-8 words)",
+      "title": "Action title addressing barrier 3 (5-8 words, verb first)",
       "points": [
-        "Specific action referencing the actual mention count from the data",
-        "How this advances the Theory of Change goal of reducing financial barriers"
+        "Specific action referencing the exact mention count from the data (X of {total} comments)",
+        "How this advances the Theory of Change goal — state the expected outcome"
       ]
     }}
   ]
 }}
-Use only mention counts from the data provided. Make language strategic.""",
+STRICT: Use only mention counts from the data above. Never estimate or invent figures.""",
                 context)
 
             # ── Prompt 5: Executive Summary (synthesises all) ─
@@ -477,13 +483,18 @@ Use only mention counts from the data provided. Make language strategic.""",
             ai_summary = call_ai(api_key, model,
                 f"""You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
 Audience Feedback report. It appears at the bottom and synthesises ALL findings
-into a board-quality strategic conclusion.
+into a board-quality strategic conclusion — not a data recap.
 
 Monkey Baa's Theory of Change mission:
 "To uplift young Australians by embedding the arts into their formative years.
 To ensure all young people have equitable access to creative experiences."
 
-Write ONE cohesive paragraph of 6-7 sentences that:
+Before writing, silently identify:
+(a) The headline sentiment achievement — positive % with exact count
+(b) The top operational barrier by mention count from the data
+(c) The one recommendation most directly linked to removing that barrier
+
+Then write ONE cohesive paragraph of 6-7 sentences using those three anchors:
 1. Opens with the headline sentiment result — overall positive tone with numbers
    (X of {total} comments / X% of {total})
 2. Highlights what audiences praised most (artistic quality, child engagement)
@@ -494,7 +505,8 @@ Write ONE cohesive paragraph of 6-7 sentences that:
 6. Closes with a statement about audience loyalty and the path to broader access
 
 Board-quality conclusion. Purposeful, warm, actionable. No headers. No bullet points.""",
-                page_synthesis)
+                page_synthesis,
+                max_tokens=900)
 
             st.session_state["fb_insights"] = ai_insights
             st.session_state["fb_weak"]     = ai_weak
