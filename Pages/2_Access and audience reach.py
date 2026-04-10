@@ -265,32 +265,57 @@ if run:
             # ── Prompt 1: Line chart ─────────────────────────────
             insights_main = call_ai(api_key, model,
                 f"""You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
-Monkey Baa's Theory of Change goal: EXPAND ACCESS to live theatre for young people,
-especially those facing geographic, financial or social barriers.
-Key output metrics: # performances delivered, # young people attending year-on-year.
+Monkey Baa's Theory of Change goal for this section:
+EXPAND ACCESS to live theatre for young people, especially those facing geographic, financial or social barriers.
 
-You are writing insights for the AUDIENCE TREND OVER TIME chart.
-Focus EXCLUSIVELY on temporal patterns — growth, peaks, drops, and what they mean
-for the mission of expanding access.
+Your task is to generate insights for the AUDIENCE TREND OVER TIME line chart.
+Focus EXCLUSIVELY on temporal patterns:
+- growth over time
+- peak years
+- declines or stagnation
+- what the trend suggests about continuity and scale of access
 
-Return exactly 4 bullet points (starting with •). Each bullet must be 2 sentences, 30-50 words total.
-1. Describe the overall trajectory using exact years and numbers from the data
-2. Identify the peak year with exact numbers and what drove that expansion of access
-3. Flag any year with decline or stagnation — what it means for continuity of access
-4. Connect the trend to the Theory of Change: is the program on track to embed
-   arts access into the lives of more young Australians each year?
+Important writing principles:
+- Use ONLY the data provided
+- Do NOT guess causes, drivers, or explanations unless explicitly supported by the data
+- If the data does not explain why something happened, describe the pattern only
+- Do NOT overclaim impact
+- Keep insights clear, explainable, and grounded in the chart values
+- Support internal decision-making by identifying meaningful patterns, risks, or opportunities
+- Use professional, concise Australian English
 
-EXAMPLE of a good bullet (use this style and length):
-• Audience grew from 52,400 in 2021 to a peak of 98,700 in 2023 — an 88% increase over two years (98,700 of 351,772 total). This trajectory demonstrates the program's expanding capacity to embed live theatre into the lives of young Australians annually.
+Return exactly 4 bullet points.
+Each bullet must:
+- start with •
+- contain exactly 2 sentences
+- be 30–50 words total
+- use exact years and numbers from the data
+- avoid vague language
 
-EXAMPLE of a bad bullet (too vague, never do this):
-• The program grew a lot and reached more young people in recent years.
+Required structure:
+1. Describe the overall audience trajectory using exact years and values from the data
+2. Identify the peak year using exact numbers and explain what that peak indicates about scale of reach, without guessing causes
+3. Identify any decline, stagnation, or recovery using exact years and values, and explain what this means for continuity of access
+4. Connect the trend to the Theory of Change by assessing whether audience reach appears to be expanding, fluctuating, or constrained over time
 
-STRICT RULES:
-- Use ONLY numbers that appear in the data. Every % must include base: write "X% (N of {total:,})".
-- Before writing each bullet, verify the number exists in the dataset.
-- If a number is not in the data, write "data not available" — never estimate.
-- No headers. No markdown. Start each point with •.""",
+Style requirements:
+- Be analytical, clear, and easy to understand
+- Use cautious interpretation language such as "indicates", "suggests", or "reflects"
+- Do NOT use headers
+- Do NOT use markdown beyond the bullet symbol
+
+Number rules:
+- Use ONLY numbers that appear in the data
+- Every percentage must include its base in the format: X% (N of {total:,})
+- If a percentage cannot be calculated directly from the provided data, do not create one
+- If a required value is missing, write "data not available"
+- Never estimate, infer missing values, or fabricate causes
+
+Example of good style:
+• Audience reach increased from 52,400 in 2021 to 98,700 in 2023, showing strong expansion over the first half of the period. This pattern suggests Monkey Baa widened its annual reach substantially during those years, supporting broader access to live theatre.
+
+Example of bad style:
+• Audience numbers improved a lot over time and the program clearly became more successful. This shows the strategy worked very well.""",
                 context)
 
             # ── Prompt 2: Metro/Regional/Remote pie chart ────────
