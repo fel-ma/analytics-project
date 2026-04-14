@@ -200,38 +200,7 @@ st.markdown(f"""
 
 
 # ─────────────────────────────────────────────────────────
-# Authentication
-# ─────────────────────────────────────────────────────────
-def show_login():
-    st.markdown("""
-    <div class='login-wrap'>
-      <div class='login-title'>Monkey Baa</div>
-      <div class='login-sub'>AI Reporting System — sign in to continue</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col_c, col_form, col_r = st.columns([1, 2, 1])
-    with col_form:
-        with st.form("login_form"):
-            username = st.text_input("Username", placeholder="Enter username")
-            password = st.text_input("Password", type="password", placeholder="Enter password")
-            submitted = st.form_submit_button("Sign in", use_container_width=True, type="primary")
-
-        if submitted:
-            if username in VALID_USERS and VALID_USERS[username] == password:
-                st.session_state["authenticated"] = True
-                st.session_state["username"] = username
-                st.rerun()
-            else:
-                st.error("Incorrect username or password. Please try again.")
-
-if not st.session_state.get("authenticated", False):
-    show_login()
-    st.stop()
-
-
-# ─────────────────────────────────────────────────────────
-# Shared data loader (CSV — with comma fix)
+# Shared data loader
 # ─────────────────────────────────────────────────────────
 @st.cache_data
 def load_audience_csv(file_bytes: bytes) -> pd.DataFrame:
@@ -247,177 +216,206 @@ def load_audience_csv(file_bytes: bytes) -> pd.DataFrame:
 
 
 # ─────────────────────────────────────────────────────────
-# Sidebar
+# Authentication — using session state, no st.stop()
 # ─────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### AI Reporting System")
-    st.divider()
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
 
-    st.markdown("#### ⚙️ Configuration")
-    api_key = st.text_input(
-        "OpenAI API key", type="password", placeholder="sk-...",
-        help="Your key is never stored — only lives in this session.",
-    )
-    model = st.selectbox("Model", ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"])
+if not st.session_state["authenticated"]:
+    st.markdown("""
+    <div class='login-wrap'>
+      <div class='login-title'>Monkey Baa</div>
+      <div class='login-sub'>AI Reporting System — sign in to continue</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    if api_key:
-        st.session_state["api_key"] = api_key
-    if model:
-        st.session_state["model"] = model
+    col_c, col_form, col_r = st.columns([1, 2, 1])
+    with col_form:
+        with st.form("login_form"):
+            username  = st.text_input("Username", placeholder="Enter username")
+            password  = st.text_input("Password", type="password", placeholder="Enter password")
+            submitted = st.form_submit_button("Sign in", use_container_width=True, type="primary")
 
-    st.divider()
-    st.markdown("#### 📂 Data — upload once")
+        if submitted:
+            if username in VALID_USERS and VALID_USERS[username] == password:
+                st.session_state["authenticated"] = True
+                st.session_state["username"] = username
+                st.rerun()
+            else:
+                st.error("Incorrect username or password. Please try again.")
 
-    uploaded = st.file_uploader(
-        "Audience_final_data.csv",
-        type=["csv"],
-        help="Upload once — available on all report pages automatically.",
-    )
-    if uploaded:
-        df = load_audience_csv(uploaded.read())
-        st.session_state["df_audience"] = df
-        total = int(df["Audience_n"].sum())
-        st.success(f"✅ {len(df):,} records loaded")
-        st.caption(f"Total audience: {total:,} · Years: 2021–2025")
-    elif "df_audience" in st.session_state:
-        st.success("✅ Audience data loaded")
-        st.caption("Navigate to any report above ↑")
-    else:
-        st.info("Upload the Audience CSV to enable reports.")
+else:
+    # ─────────────────────────────────────────────────────
+    # Sidebar — only shown when authenticated
+    # ─────────────────────────────────────────────────────
+    with st.sidebar:
+        st.markdown("### AI Reporting System")
+        st.divider()
 
-    st.markdown("#### 📂 Survey data")
-    uploaded2 = st.file_uploader(
-        "Survey CSV or Excel",
-        type=["csv", "xlsx"],
-        help="Upload the survey dataset — available on all pages automatically.",
-        key="survey_upload",
-    )
-    if uploaded2:
-        raw = uploaded2.read()
-        if uploaded2.name.endswith(".xlsx"):
-            import io as _io
-            df2 = pd.read_excel(_io.BytesIO(raw))
+        st.markdown("#### ⚙️ Configuration")
+        api_key = st.text_input(
+            "OpenAI API key", type="password", placeholder="sk-...",
+            help="Your key is never stored — only lives in this session.",
+        )
+        model = st.selectbox("Model", ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"])
+
+        if api_key:
+            st.session_state["api_key"] = api_key
+        if model:
+            st.session_state["model"] = model
+
+        st.divider()
+        st.markdown("#### 📂 Data — upload once")
+
+        uploaded = st.file_uploader(
+            "Audience_final_data.csv",
+            type=["csv"],
+            help="Upload once — available on all report pages automatically.",
+        )
+        if uploaded:
+            df = load_audience_csv(uploaded.read())
+            st.session_state["df_audience"] = df
+            total = int(df["Audience_n"].sum())
+            st.success(f"✅ {len(df):,} records loaded")
+            st.caption(f"Total audience: {total:,} · Years: 2021–2025")
+        elif "df_audience" in st.session_state:
+            st.success("✅ Audience data loaded")
+            st.caption("Navigate to any report above ↑")
         else:
-            import io as _io
-            df2 = pd.read_csv(_io.BytesIO(raw), encoding="utf-8-sig")
-        df2.columns = df2.columns.str.strip()
-        st.session_state["df_survey"] = df2
-        st.success(f"✅ Survey: {len(df2):,} rows loaded")
-        st.caption(f"Columns: {', '.join(df2.columns[:4].tolist())}…")
-    elif "df_survey" in st.session_state:
-        st.success("✅ Survey data loaded")
-    else:
-        st.info("Upload the survey file when ready.")
+            st.info("Upload the Audience CSV to enable reports.")
 
-    st.divider()
-    user = st.session_state.get("username", "")
-    st.caption(f"Signed in as **{user}**")
-    if st.button("Sign out", use_container_width=True):
-        st.session_state["authenticated"] = False
-        st.session_state["username"] = ""
-        st.rerun()
+        st.markdown("#### 📂 Survey data")
+        uploaded2 = st.file_uploader(
+            "Survey CSV or Excel",
+            type=["csv", "xlsx"],
+            help="Upload the survey dataset — available on all pages automatically.",
+            key="survey_upload",
+        )
+        if uploaded2:
+            raw = uploaded2.read()
+            if uploaded2.name.endswith(".xlsx"):
+                import io as _io
+                df2 = pd.read_excel(_io.BytesIO(raw))
+            else:
+                import io as _io
+                df2 = pd.read_csv(_io.BytesIO(raw), encoding="utf-8-sig")
+            df2.columns = df2.columns.str.strip()
+            st.session_state["df_survey"] = df2
+            st.success(f"✅ Survey: {len(df2):,} rows loaded")
+            st.caption(f"Columns: {', '.join(df2.columns[:4].tolist())}…")
+        elif "df_survey" in st.session_state:
+            st.success("✅ Survey data loaded")
+        else:
+            st.info("Upload the survey file when ready.")
 
+        st.divider()
+        user = st.session_state.get("username", "")
+        st.caption(f"Signed in as **{user}**")
+        if st.button("Sign out", use_container_width=True):
+            st.session_state["authenticated"] = False
+            st.session_state["username"] = ""
+            st.rerun()
 
-# ─────────────────────────────────────────────────────────
-# User Guide — main content
-# ─────────────────────────────────────────────────────────
-h1, h2 = st.columns([3, 1])
-with h1:
-    st.markdown("""
-    <div class='page-header'>
-      <div class='page-eyebrow'>Monkey Baa Theatre</div>
-      <div class='page-title'>User Guide</div>
-    </div>
-    """, unsafe_allow_html=True)
-with h2:
-    st.markdown("""
-    <div style='text-align:right;padding-top:14px;font-size:22px;
-                font-weight:700;color:#222;font-style:italic;'>
-      monkey baa
-    </div>
-    """, unsafe_allow_html=True)
+    # ─────────────────────────────────────────────────────
+    # User Guide — main content
+    # ─────────────────────────────────────────────────────
+    h1, h2 = st.columns([3, 1])
+    with h1:
+        st.markdown("""
+        <div class='page-header'>
+          <div class='page-eyebrow'>Monkey Baa Theatre</div>
+          <div class='page-title'>User Guide</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with h2:
+        st.markdown("""
+        <div style='text-align:right;padding-top:14px;font-size:22px;
+                    font-weight:700;color:#222;font-style:italic;'>
+          monkey baa
+        </div>
+        """, unsafe_allow_html=True)
 
-st.markdown("<hr class='div'>", unsafe_allow_html=True)
+    st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
-col_left, col_right = st.columns([5, 4], gap="large")
+    col_left, col_right = st.columns([5, 4], gap="large")
 
-with col_left:
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown("<div class='section-label'>Navigation</div>", unsafe_allow_html=True)
-    st.markdown("<div class='section-heading'>Available Reports</div>", unsafe_allow_html=True)
+    with col_left:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='section-label'>Navigation</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-heading'>Available Reports</div>", unsafe_allow_html=True)
 
-    reports = [
-        ("1", "Executive Overview",
-         "Full program summary for leadership and board — all key metrics in one view."),
-        ("2", "Access & Audience Reach",
-         "Total audience, geographic reach, Metro vs Regional vs Remote breakdown."),
-        ("3", "Audience Feedback",
-         "Comment sentiment analysis, improvement areas, and audience voice."),
-        ("4", "Emotional & Social Impact",
-         "Community outcomes, equity of experience, and social value of the program."),
-        ("5", "Arts & Cultural Impact",
-         "Cultural outcomes from the survey — identity, curiosity, and story recognition."),
-        ("6", "High Quality Outcomes",
-         "Year-on-year performance quality, event trends, and output benchmarks."),
-        ("7", "Impact Report — Sponsors",
-         "ROI narrative and outcomes tailored for funders and philanthropic partners."),
-    ]
+        reports = [
+            ("1", "Executive Overview",
+             "Full program summary for leadership and board — all key metrics in one view."),
+            ("2", "Access & Audience Reach",
+             "Total audience, geographic reach, Metro vs Regional vs Remote breakdown."),
+            ("3", "Audience Feedback",
+             "Comment sentiment analysis, improvement areas, and audience voice."),
+            ("4", "Emotional & Social Impact",
+             "Community outcomes, equity of experience, and social value of the program."),
+            ("5", "Arts & Cultural Impact",
+             "Cultural outcomes from the survey — identity, curiosity, and story recognition."),
+            ("6", "High Quality Outcomes",
+             "Year-on-year performance quality, event trends, and output benchmarks."),
+            ("7", "Impact Report — Sponsors",
+             "ROI narrative and outcomes tailored for funders and philanthropic partners."),
+        ]
 
-    for num, title, desc in reports:
+        for num, title, desc in reports:
+            st.markdown(f"""
+            <div class='report-row'>
+              <div class='report-num'>{num}</div>
+              <div>
+                <div class='report-title'>{title}</div>
+                <div class='report-desc'>{desc}</div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col_right:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='section-label'>Getting Started</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-heading'>How to Use</div>", unsafe_allow_html=True)
+
+        steps = [
+            ("Enter your API key",
+             "Paste your <b>OpenAI API key</b> in the sidebar. "
+             "It stays only in this session and is never stored."),
+            ("Upload data",
+             "Use the <b>sidebar</b> to upload <b>Audience_final_data.csv</b> and the <b>Survey file</b>. "
+             "Files stay loaded as you move between reports."),
+            ("Select a report",
+             "Use the <b>navigation menu</b> on the left to open any report page."),
+            ("Generate insights",
+             "Click <b>Generate AI Insights</b> inside the report. "
+             "The system analyses your data and returns AI-powered findings."),
+            ("Review & download",
+             "Read the insights, charts, and executive summary. "
+             "Download the report as a <b>Markdown</b> or <b>JSON</b> file at the bottom."),
+        ]
+
+        for i, (title, text) in enumerate(steps, 1):
+            st.markdown(f"""
+            <div class='step-row'>
+              <div class='step-num'>{i}</div>
+              <div class='step-text'><b>{title}</b> — {text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
         st.markdown(f"""
-        <div class='report-row'>
-          <div class='report-num'>{num}</div>
-          <div>
-            <div class='report-title'>{title}</div>
-            <div class='report-desc'>{desc}</div>
+        <div class='card' style='background-color:#FDF3EE;border-left:4px solid {ORANGE};
+                                 padding:14px 18px;margin-top:0;'>
+          <div style='font-size:12px;font-weight:700;color:{ORANGE_DARK};margin-bottom:6px;'>
+            About AI Insights
+          </div>
+          <div style='font-size:12px;color:{GRAY_TEXT};line-height:1.65;'>
+            All insights are generated by GPT-4o using your uploaded data.
+            Numbers are always drawn from the dataset — the model never fabricates figures.
+            Each insight is aligned with Monkey Baa's Theory of Change framework.
           </div>
         </div>
         """, unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with col_right:
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown("<div class='section-label'>Getting Started</div>", unsafe_allow_html=True)
-    st.markdown("<div class='section-heading'>How to Use</div>", unsafe_allow_html=True)
-
-    steps = [
-        ("Enter your API key",
-         "Paste your <b>OpenAI API key</b> in the sidebar. "
-         "It stays only in this session and is never stored."),
-        ("Upload data",
-         "Use the <b>sidebar</b> to upload <b>Audience_final_data.csv</b> and the <b>Survey file</b>. "
-         "Files stay loaded as you move between reports."),
-        ("Select a report",
-         "Use the <b>navigation menu</b> on the left to open any report page."),
-        ("Generate insights",
-         "Click <b>Generate AI Insights</b> inside the report. "
-         "The system analyses your data and returns AI-powered findings."),
-        ("Review & download",
-         "Read the insights, charts, and executive summary. "
-         "Download the report as a <b>Markdown</b> or <b>JSON</b> file at the bottom."),
-    ]
-
-    for i, (title, text) in enumerate(steps, 1):
-        st.markdown(f"""
-        <div class='step-row'>
-          <div class='step-num'>{i}</div>
-          <div class='step-text'><b>{title}</b> — {text}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div class='card' style='background-color:#FDF3EE;border-left:4px solid {ORANGE};
-                             padding:14px 18px;margin-top:0;'>
-      <div style='font-size:12px;font-weight:700;color:{ORANGE_DARK};margin-bottom:6px;'>
-        About AI Insights
-      </div>
-      <div style='font-size:12px;color:{GRAY_TEXT};line-height:1.65;'>
-        All insights are generated by GPT-4o using your uploaded data.
-        Numbers are always drawn from the dataset — the model never fabricates figures.
-        Each insight is aligned with Monkey Baa's Theory of Change framework.
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
