@@ -12,6 +12,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from openai import OpenAI
+from utils.styles import apply_styles
 
 ORANGE      = "#E8673A"
 ORANGE_DARK = "#C4512A"
@@ -19,28 +20,7 @@ BEIGE       = "#F5F0EA"
 WHITE       = "#FFFFFF"
 GRAY_TEXT   = "#555555"
 
-st.markdown(f"""
-<style>
-  .stApp {{ background-color: {BEIGE}; }}
-  .kpi-card {{ background-color:{ORANGE};border-radius:12px;padding:14px 12px;text-align:center;color:white; }}
-  .kpi-label {{ font-size:11px;font-weight:500;opacity:.85;margin-bottom:3px; }}
-  .kpi-value {{ font-size:28px;font-weight:700;line-height:1.1; }}
-  .card {{ background-color:{WHITE};border-radius:12px;padding:16px 20px;margin-bottom:12px; }}
-  .insight-box {{ background-color:#FDF3EE;border-radius:10px;padding:14px 16px;
-                  color:{GRAY_TEXT};font-size:13px;line-height:1.6; }}
-  .insight-box ul {{ margin:0;padding-left:16px; }}
-  .insight-box li {{ margin-bottom:7px; }}
-  .section-title {{ font-size:14px;font-weight:600;color:{ORANGE_DARK};
-                    margin-bottom:8px;text-decoration:underline; }}
-  .summary-box {{ background-color:{WHITE};border-radius:12px;padding:16px 20px;
-                  color:{GRAY_TEXT};font-size:13px;line-height:1.7; }}
-  table.st-table {{ width:100%;border-collapse:collapse;font-size:12px;color:{GRAY_TEXT}; }}
-  table.st-table th {{ background-color:#f0e8e0;padding:6px 10px;text-align:left;
-                       font-weight:600;border-bottom:2px solid #ddd; }}
-  table.st-table td {{ padding:5px 10px;border-bottom:1px solid #eee; }}
-  hr.div {{ border:none;border-top:1px solid #e0d8d0;margin:6px 0 12px 0; }}
-</style>
-""", unsafe_allow_html=True)
+apply_styles()
 
 
 # ── Helpers ──────────────────────────────────────────────
