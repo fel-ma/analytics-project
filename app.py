@@ -6,24 +6,13 @@ Run with:  PYTHONPATH=$(pwd) streamlit run app.py
 
 Handles:
 - Login authentication
-- Sidebar: navigation and CSV upload (shared across ALL pages)
+- Sidebar: API key input, model selector, CSV upload (shared across ALL pages)
 - Stores df, api_key, model in st.session_state so pages don't re-upload
-- API key and model stored in backend — not exposed to user
 """
 
 import io
-import os
 import pandas as pd
 import streamlit as st
-
-# ─────────────────────────────────────────────────────────
-# Backend configuration — never shown to user
-# ─────────────────────────────────────────────────────────
-OPENAI_API_KEY = (
-    st.secrets.get("OPENAI_API_KEY")
-    or os.environ.get("OPENAI_API_KEY", "")
-)
-OPENAI_MODEL   = "gpt-4o"
 
 # ─────────────────────────────────────────────────────────
 # Login credentials — change as needed
@@ -54,14 +43,12 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────────────────
-# Global CSS — sidebar teal + page style matching report pages
+# Global CSS
 # ─────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
-  /* ── Page background ── */
   .stApp {{ background-color: {BEIGE}; }}
 
-  /* ── Sidebar background ── */
   [data-testid="stSidebar"] {{
     background-color: {TEAL_DARK} !important;
   }}
@@ -76,10 +63,6 @@ st.markdown(f"""
   [data-testid="stSidebar"] hr {{
     border-color: rgba(255,255,255,0.2) !important;
   }}
-  [data-testid="stSidebar"] .stFileUploader label,
-  [data-testid="stSidebar"] .stMarkdown p {{
-    color: #e8f4f5 !important;
-  }}
   [data-testid="stSidebar"] .stButton > button {{
     background-color: rgba(255,255,255,0.15);
     border: 1px solid rgba(255,255,255,0.3);
@@ -87,7 +70,6 @@ st.markdown(f"""
     border-radius: 8px;
   }}
 
-  /* ── Cards ── */
   .card {{
     background-color: {WHITE};
     border-radius: 12px;
@@ -95,7 +77,6 @@ st.markdown(f"""
     margin-bottom: 14px;
   }}
 
-  /* ── Report row ── */
   .report-row {{
     display: flex;
     align-items: flex-start;
@@ -130,7 +111,6 @@ st.markdown(f"""
     line-height: 1.5;
   }}
 
-  /* ── Step ── */
   .step-row {{
     display: flex;
     align-items: flex-start;
@@ -159,7 +139,6 @@ st.markdown(f"""
   }}
   .step-text b {{ color: #222; }}
 
-  /* ── Section headings ── */
   .section-label {{
     font-size: 11px;
     font-weight: 600;
@@ -178,10 +157,7 @@ st.markdown(f"""
     display: inline-block;
   }}
 
-  /* ── Page header ── */
-  .page-header {{
-    padding: 4px 0 12px 0;
-  }}
+  .page-header {{ padding: 4px 0 12px 0; }}
   .page-eyebrow {{
     font-size: 11px;
     color: #999;
@@ -195,7 +171,6 @@ st.markdown(f"""
     color: #222;
     line-height: 1.2;
   }}
-  .page-title span {{ color: {ORANGE}; }}
 
   hr.div {{
     border: none;
@@ -203,7 +178,6 @@ st.markdown(f"""
     margin: 6px 0 16px 0;
   }}
 
-  /* ── Login form ── */
   .login-wrap {{
     max-width: 380px;
     margin: 80px auto 0;
@@ -220,17 +194,9 @@ st.markdown(f"""
     margin-bottom: 24px;
   }}
 
-  /* ── Misc ── */
   .stDownloadButton > button {{ width: 100%; }}
 </style>
 """, unsafe_allow_html=True)
-
-
-# ─────────────────────────────────────────────────────────
-# Push API key + model into session state (backend, no user input)
-# ─────────────────────────────────────────────────────────
-st.session_state["api_key"] = OPENAI_API_KEY
-st.session_state["model"]   = OPENAI_MODEL
 
 
 # ─────────────────────────────────────────────────────────
@@ -287,6 +253,19 @@ with st.sidebar:
     st.markdown("### AI Reporting System")
     st.divider()
 
+    st.markdown("#### ⚙️ Configuration")
+    api_key = st.text_input(
+        "OpenAI API key", type="password", placeholder="sk-...",
+        help="Your key is never stored — only lives in this session.",
+    )
+    model = st.selectbox("Model", ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"])
+
+    if api_key:
+        st.session_state["api_key"] = api_key
+    if model:
+        st.session_state["model"] = model
+
+    st.divider()
     st.markdown("#### 📂 Data — upload once")
 
     uploaded = st.file_uploader(
@@ -331,8 +310,6 @@ with st.sidebar:
         st.info("Upload the survey file when ready.")
 
     st.divider()
-
-    # Logout
     user = st.session_state.get("username", "")
     st.caption(f"Signed in as **{user}**")
     if st.button("Sign out", use_container_width=True):
@@ -344,8 +321,6 @@ with st.sidebar:
 # ─────────────────────────────────────────────────────────
 # User Guide — main content
 # ─────────────────────────────────────────────────────────
-
-# Header
 h1, h2 = st.columns([3, 1])
 with h1:
     st.markdown("""
@@ -364,7 +339,6 @@ with h2:
 
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
-# ── Two columns: Reports + How to use ────────────────────
 col_left, col_right = st.columns([5, 4], gap="large")
 
 with col_left:
@@ -408,6 +382,9 @@ with col_right:
     st.markdown("<div class='section-heading'>How to Use</div>", unsafe_allow_html=True)
 
     steps = [
+        ("Enter your API key",
+         "Paste your <b>OpenAI API key</b> in the sidebar. "
+         "It stays only in this session and is never stored."),
         ("Upload data",
          "Use the <b>sidebar</b> to upload <b>Audience_final_data.csv</b> and the <b>Survey file</b>. "
          "Files stay loaded as you move between reports."),
@@ -415,13 +392,10 @@ with col_right:
          "Use the <b>navigation menu</b> on the left to open any report page."),
         ("Generate insights",
          "Click <b>Generate AI Insights</b> inside the report. "
-         "The system analyses your data and returns AI-powered findings aligned with Monkey Baa's Theory of Change."),
+         "The system analyses your data and returns AI-powered findings."),
         ("Review & download",
          "Read the insights, charts, and executive summary. "
-         "Download the report as a <b>Markdown</b> or <b>JSON</b> file using the download button at the bottom."),
-        ("Re-run anytime",
-         "Insights are re-generated each session. "
-         "Re-upload updated data at any time — the system will reflect the latest figures."),
+         "Download the report as a <b>Markdown</b> or <b>JSON</b> file at the bottom."),
     ]
 
     for i, (title, text) in enumerate(steps, 1):
@@ -434,7 +408,6 @@ with col_right:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # ── Quick note card ───────────────────────────────────
     st.markdown(f"""
     <div class='card' style='background-color:#FDF3EE;border-left:4px solid {ORANGE};
                              padding:14px 18px;margin-top:0;'>
