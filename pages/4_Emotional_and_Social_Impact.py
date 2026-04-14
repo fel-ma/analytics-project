@@ -54,6 +54,8 @@ st.markdown(f"""
                border-left:4px solid {ORANGE};margin-bottom:6px; }}
   .rec-card-title {{ font-size:13px;font-weight:700;color:{ORANGE_DARK};margin-bottom:5px; }}
   .rec-card p {{ margin:0;color:#111;font-size:12.5px;line-height:1.65; }}
+  [data-testid="stSidebar"] {{ background-color: #1F4A4E !important; }}
+  [data-testid="stHeader"] {{ display: none !important; }}
 </style>
 """, unsafe_allow_html=True)
 

@@ -629,7 +629,9 @@ with c4:
       table tr td {{ border: 1px solid #ddd; padding: 5px 10px; }}
       table tr:nth-child(even) {{ background-color: #fdf6f2; }}
       table tr:hover {{ background-color: #fce8dc; }}
-    </style>
+      [data-testid="stSidebar"] {{ background-color: #1F4A4E !important; }}
+  [data-testid="stHeader"] {{ display: none !important; }}
+</style>
     """, unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
