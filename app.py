@@ -14,7 +14,7 @@ ORANGE_DARK = "#C4512A"
 BEIGE       = "#F5F0EA"
 WHITE       = "#FFFFFF"
 GRAY_TEXT   = "#555555"
-TEAL_DARK   = "#2F6F73"
+TEAL_DARK   = "#1F4A4E"
 
 st.set_page_config(
     page_title="Monkey Baa — AI Reporting System",
@@ -26,13 +26,15 @@ st.set_page_config(
 st.markdown(f"""
 <style>
   .stApp {{ background-color: {BEIGE}; }}
+  [data-testid="stHeader"] {{ display: none !important; }}
   [data-testid="stSidebar"] {{ background-color: {TEAL_DARK} !important; }}
   [data-testid="stSidebar"] * {{ color: #ffffff !important; }}
   [data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,0.2) !important; }}
   [data-testid="stSidebar"] .stButton > button {{
     background-color: rgba(255,255,255,0.15);
     border: 1px solid rgba(255,255,255,0.3);
-    color: white !important; border-radius: 8px;
+    color: white !important;
+    border-radius: 8px;
   }}
   .card {{ background-color: {WHITE}; border-radius: 12px; padding: 20px 24px; margin-bottom: 14px; }}
   .report-row {{ display:flex; align-items:flex-start; gap:14px; padding:12px 0; border-bottom:1px solid #ede5dc; }}
