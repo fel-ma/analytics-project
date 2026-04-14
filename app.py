@@ -19,7 +19,10 @@ import streamlit as st
 # ─────────────────────────────────────────────────────────
 # Backend configuration — never shown to user
 # ─────────────────────────────────────────────────────────
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_API_KEY = (
+    st.secrets.get("OPENAI_API_KEY")
+    or os.environ.get("OPENAI_API_KEY", "")
+)
 OPENAI_MODEL   = "gpt-4o"
 
 # ─────────────────────────────────────────────────────────
