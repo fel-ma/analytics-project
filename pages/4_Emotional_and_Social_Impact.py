@@ -54,8 +54,6 @@ st.markdown(f"""
                border-left:4px solid {ORANGE};margin-bottom:6px; }}
   .rec-card-title {{ font-size:13px;font-weight:700;color:{ORANGE_DARK};margin-bottom:5px; }}
   .rec-card p {{ margin:0;color:#111;font-size:12.5px;line-height:1.65; }}
-  [data-testid="stSidebar"] {{ background-color: #1F4A4E !important; }}
-  [data-testid="stHeader"] {{ display: none !important; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -127,7 +125,7 @@ def call_ai(prompt, context):
         model=model,
         messages=[{"role": "system", "content": prompt},
                   {"role": "user",   "content": f"Data:\n{context}"}],
-        temperature=0.3, max_tokens=700,
+        temperature=0.3, max_tokens=1000,
     )
     return r.choices[0].message.content.strip()
 
@@ -144,14 +142,19 @@ def placeholder(msg):
 PROMPT_QUALITY = (
     "You are an arts analytics expert for Monkey Baa Theatre, an Australian children's theatre company. "
     "Analyse these 6 artistic quality scores rated by audience members (scale 0–10). "
-    "Return exactly 3 bullet points (starting with •) for a theatre manager. Max 25 words each. "
-    "Focus on strengths, gaps, and one actionable recommendation."
+    "Return exactly 3 bullet points (starting with •) for a theatre manager. "
+    "Each bullet must be 30–50 words. "
+    "Cover: the strongest dimension with specific score and what it signals, overall pattern across dimensions, "
+    "and one concrete actionable recommendation tied to the lowest-scoring dimension."
 )
 PROMPT_EMOTION = (
     "You are an arts education expert for Monkey Baa Theatre, an Australian children's theatre company. "
     "These are emotions felt by young people during live performances (% of respondents). "
-    "Return exactly 3 bullet points (starting with •) for a theatre manager. Max 28 words each. "
-    "Cover: dominant emotion takeaway, emotional range meaning, and one strategic insight."
+    "Return exactly 3 bullet points (starting with •) for a theatre manager. "
+    "Each bullet must be 30–50 words. "
+    "Cover: the dominant emotion and what it reveals about the audience experience, "
+    "the meaning of the emotional range across all 8 emotions, "
+    "and one strategic programming or marketing insight based on the emotional data."
 )
 PROMPT_REC = (
     "You are a strategic advisor for Monkey Baa Theatre, an Australian children's theatre company. "
@@ -162,9 +165,14 @@ PROMPT_REC = (
 )
 PROMPT_SUMMARY = (
     "You are a senior analyst for Monkey Baa Theatre, an Australian children's theatre company. "
-    "Write a concise executive summary (max 4 lines, no bullet points, flowing prose) "
+    "Write an executive summary of exactly 5 sentences in flowing prose (no bullet points) "
     "for a board-level report on Emotional & Social Impact. "
-    "Highlight strengths, key findings, and one strategic recommendation."
+    "Structure it as follows: "
+    "(1) Open with the headline satisfaction result using exact numbers. "
+    "(2) Describe the emotional experience of young audiences — dominant emotions and what they signal. "
+    "(3) Analyse the artistic quality dimensions — what is strong and what needs attention. "
+    "(4) Connect the findings to Monkey Baa's mission of embedding arts in young Australians' lives. "
+    "(5) Close with one forward-looking strategic recommendation for leadership."
 )
 
 # ── Generate button ───────────────────────────────────────
@@ -229,7 +237,6 @@ st.markdown("<div style='margin-top:10px'></div>", unsafe_allow_html=True)
 # ════════════════════════════════════════════════════════════
 # SECTION 1 — Artistic Quality Metrics
 # ════════════════════════════════════════════════════════════
-st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown(f"<div class='section-title'>Artistic Quality Metrics — Audience Perception</div>",
             unsafe_allow_html=True)
 
@@ -248,28 +255,21 @@ with c1:
         </div>""", unsafe_allow_html=True)
 
 with c2:
-    st.markdown(f"<div class='section-title'>Insights</div>", unsafe_allow_html=True)
     if ins_q:
         st.markdown(bullets_html(ins_q), unsafe_allow_html=True)
     else:
-        top = quality_sorted[0]  if quality_sorted else ("Aesthetic Experience", 8.3)
-        low = quality_sorted[-1] if quality_sorted else ("Belonging", 5.7)
-        st.markdown(f"""<div class='insight-box'><ul>
-          <li><b>{top[0]}</b> leads at {top[1]}/10 — audiences respond strongly to this artistic dimension.</li>
-          <li>Most quality dimensions score above 7/10, reflecting consistently strong artistic delivery.</li>
-          <li><b>{low[0]}</b> ({low[1]}/10) is the lowest — consider community engagement initiatives.</li>
-        </ul></div>""", unsafe_allow_html=True)
+        st.markdown(placeholder("Click <b>🚀 Generate AI Insights</b> to load quality insights."),
+                    unsafe_allow_html=True)
 
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top:14px'></div>", unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
 # SECTION 2 — Emotional Responses During Performance
 # ════════════════════════════════════════════════════════════
-st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown(f"<div class='section-title'>Emotional Responses During Performance</div>",
             unsafe_allow_html=True)
 
-c3, c4 = st.columns([1.2, 0.8])
+c3, c4 = st.columns([5, 5])
 
 with c3:
     # Vertical bar chart — emoji ON TOP, label BELOW in small font
@@ -360,18 +360,13 @@ with c3:
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 with c4:
-    st.markdown(f"<div class='section-title'>Insights</div>", unsafe_allow_html=True)
     if ins_e:
         st.markdown(bullets_html(ins_e), unsafe_allow_html=True)
     else:
-        top_e = emotion_sorted[0] if emotion_sorted else ("Happy", 91.9)
-        st.markdown(f"""<div class='insight-box'><ul>
-          <li><b>{top_e[0]}</b> ({top_e[1]}%) dominates — performances consistently create positive emotional experiences.</li>
-          <li>Curiosity and Surprise appear frequently, signalling strong narrative engagement.</li>
-          <li>Low negative emotions suggest content is emotionally safe while remaining stimulating.</li>
-        </ul></div>""", unsafe_allow_html=True)
+        st.markdown(placeholder("Click <b>🚀 Generate AI Insights</b> to load emotion insights."),
+                    unsafe_allow_html=True)
 
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top:14px'></div>", unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════
 # SECTION 3 — Strategic Recommendations (3 cards)
@@ -399,26 +394,8 @@ if ins_rec:
     else:
         st.markdown(bullets_html(ins_rec), unsafe_allow_html=True)
 else:
-    # Static fallback
-    top_e  = emotion_sorted[0]  if emotion_sorted else ("Happy",  91.9)
-    low_q  = quality_sorted[-1] if quality_sorted else ("Belonging", 5.7)
-    top_q  = quality_sorted[0]  if quality_sorted else ("Aesthetic Experience", 8.3)
-    rc1, rc2, rc3 = st.columns(3)
-    with rc1:
-        st.markdown(f"""<div class='rec-card'>
-          <div class='rec-card-title'>Leverage Emotional Safety in Marketing</div>
-          <p>With {top_e[1]}% of young people reporting happiness, position emotional safety as a key differentiator in campaigns targeting parents and carers. Highlight that Monkey Baa creates positive, stimulating experiences without overwhelming young audiences.</p>
-        </div>""", unsafe_allow_html=True)
-    with rc2:
-        st.markdown(f"""<div class='rec-card'>
-          <div class='rec-card-title'>Deepen {top_q[0]} Across All Productions</div>
-          <p>{top_q[0]} scores highest at {top_q[1]}/10 — invest in maintaining this standard as a signature of the Monkey Baa brand. Use audience feedback to identify which specific elements (design, staging, narrative) drive this score.</p>
-        </div>""", unsafe_allow_html=True)
-    with rc3:
-        st.markdown(f"""<div class='rec-card'>
-          <div class='rec-card-title'>Develop Community {low_q[0]} Programs</div>
-          <p>{low_q[0]} scores lowest at {low_q[1]}/10 — introduce post-show community activities and school partnerships to strengthen audience belonging. This directly supports Monkey Baa's mission of embedding arts in young Australians' formative years.</p>
-        </div>""", unsafe_allow_html=True)
+    st.markdown(placeholder("Click <b>🚀 Generate AI Insights</b> to load strategic recommendations."),
+                unsafe_allow_html=True)
 
 st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
 
@@ -430,17 +407,10 @@ st.markdown("<div style='font-size:15px;font-weight:600;color:#333;margin-bottom
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
 low_dim = quality_sorted[-1] if quality_sorted else ("Belonging", 5.67)
-default_sum = (
-    f"Monkey Baa Theatre's productions generated strong emotional engagement across {n:,} survey "
-    f"respondents, with {pct_happy}% of young audience members reporting happiness and {pct_excellent}% "
-    f"rating their experience as Excellent. An emotional impact score of {impact_score}/10 and NPS of "
-    f"{nps} confirm the company's ability to connect meaningfully with young audiences. "
-    f"Strengthening {low_dim[0].lower()} (currently {low_dim[1]}/10) represents the clearest "
-    f"opportunity for future programming focus."
-)
 
 st.markdown(
-    f"<div class='summary-box'>{ins_sum if ins_sum else default_sum}</div>",
+    f"<div class='summary-box'>{ins_sum}</div>" if ins_sum
+    else placeholder("Click <b>🚀 Generate AI Insights</b> to load the executive summary."),
     unsafe_allow_html=True
 )
 
