@@ -281,11 +281,8 @@ KEY_DISC      = "hqo_disc_insights"
 KEY_RECS      = "hqo_recommendations"
 KEY_SUMMARY   = "hqo_summary"
  
-# ── Auto-generate all AI on first load ───────────────────────────────────────
-if api_key:
-    # 1. Main insights
-    if KEY_INSIGHTS not in st.session_state:
-        PROMPT_INSIGHTS = """You are an expert analyst for Monkey Baa Theatre, an Australian children's theatre company.
+# ── Prompts ───────────────────────────────────────────────────────────────────
+PROMPT_INSIGHTS = """You are an expert analyst for Monkey Baa Theatre, an Australian children's theatre company.
 Analyse audience satisfaction, engagement, emotional impact, and intent to return.
 Return exactly 5 numbered insights for an executive report.
 Each insight: 2-3 sentences, specific, evidence-based, action-relevant.
@@ -293,86 +290,64 @@ Format exactly as:
 1. [Insight title]: [2-3 sentence explanation with data references]
 2. ...
 """
-        try:
-            st.session_state[KEY_INSIGHTS] = call_ai(api_key, model, PROMPT_INSIGHTS, CTX, 900)
-        except Exception as e:
-            st.session_state[KEY_INSIGHTS] = f"Error: {e}"
- 
-    # 2. Age / demographic insights
-    if KEY_AGE not in st.session_state:
-        PROMPT_AGE = """You are an expert analyst for Monkey Baa Theatre, an Australian children's theatre company.
+PROMPT_AGE = """You are an expert analyst for Monkey Baa Theatre, an Australian children's theatre company.
 Analyse the demographic trends in young audience age groups and interpret what this means for programming, content design, and developmental outcomes.
 Return exactly 2 concise insights (2-3 sentences each).
 Format: bullet points starting with •"""
-        try:
-            st.session_state[KEY_AGE] = call_ai(api_key, model, PROMPT_AGE, CTX, 400)
-        except Exception as e:
-            st.session_state[KEY_AGE] = f"Error: {e}"
- 
-    # 3. Discovery / marketing insights
-    if KEY_DISC not in st.session_state:
-        PROMPT_DISC = """You are a marketing analyst for Monkey Baa Theatre, an Australian children's theatre company.
+
+PROMPT_DISC = """You are a marketing analyst for Monkey Baa Theatre, an Australian children's theatre company.
 Analyse how audiences discovered the show and what this reveals about marketing effectiveness and audience reach strategy.
 Return exactly 2 concise insights (2-3 sentences each).
 Format: bullet points starting with •"""
-        try:
-            st.session_state[KEY_DISC] = call_ai(api_key, model, PROMPT_DISC, CTX, 400)
-        except Exception as e:
-            st.session_state[KEY_DISC] = f"Error: {e}"
- 
-    # 4. Recommendations
-    if KEY_RECS not in st.session_state:
-        PROMPT_RECS = """You are a strategic advisor for Monkey Baa Theatre, an Australian children's theatre company.
+
+PROMPT_RECS = """You are a strategic advisor for Monkey Baa Theatre, an Australian children's theatre company.
 Based on all survey insights — satisfaction, engagement, demographics, marketing — generate exactly 3 action-oriented recommendations.
-Each recommendation: a short bold title followed by 2-3 sentences explaining what to do and why.
+Each recommendation: 2-3 sentences explaining what to do and why. No titles.
 Format:
-1. [Title]: [explanation]
-2. [Title]: [explanation]
-3. [Title]: [explanation]"""
-        try:
-            st.session_state[KEY_RECS] = call_ai(api_key, model, PROMPT_RECS, CTX, 700)
-        except Exception as e:
-            st.session_state[KEY_RECS] = f"Error: {e}"
- 
-    # 5. Summary
-    if KEY_SUMMARY not in st.session_state:
-        PROMPT_SUMMARY = """You are a senior analyst writing for Monkey Baa Theatre's board and sponsors.
+1. [explanation]
+2. [explanation]
+3. [explanation]"""
+
+PROMPT_SUMMARY = """You are a senior analyst writing for Monkey Baa Theatre's board and sponsors.
 Using all survey data, insights and recommendations, write an executive summary covering:
 1. Overall performance and audience satisfaction
 2. Audience engagement and social impact
 3. Strategic value and return on investment for sponsors
 Tone: executive, persuasive, impact-focused. Max 4 sentences total. No bullet points — flowing prose."""
-        insights_so_far = "\n\n".join([
-            st.session_state.get(KEY_INSIGHTS, ""),
-            st.session_state.get(KEY_AGE, ""),
-            st.session_state.get(KEY_DISC, ""),
-            st.session_state.get(KEY_RECS, ""),
-        ])
+
+# ── Generate button ───────────────────────────────────────────────────────────
+run = st.button("🚀 Generate AI Insights", type="primary")
+
+if run:
+    if not api_key:
+        st.error("Enter your OpenAI API key in the sidebar on the Home page.")
+        st.stop()
+    with st.spinner("Generating insights…"):
         try:
+            st.session_state[KEY_INSIGHTS] = call_ai(api_key, model, PROMPT_INSIGHTS, CTX, 900)
+            st.session_state[KEY_AGE]      = call_ai(api_key, model, PROMPT_AGE,      CTX, 400)
+            st.session_state[KEY_DISC]     = call_ai(api_key, model, PROMPT_DISC,     CTX, 400)
+            st.session_state[KEY_RECS]     = call_ai(api_key, model, PROMPT_RECS,     CTX, 700)
+            insights_so_far = "\n\n".join([
+                st.session_state[KEY_INSIGHTS],
+                st.session_state[KEY_AGE],
+                st.session_state[KEY_DISC],
+                st.session_state[KEY_RECS],
+            ])
             st.session_state[KEY_SUMMARY] = call_ai(
                 api_key, model, PROMPT_SUMMARY,
-                CTX + "\n\nINSIGHTS & RECOMMENDATIONS:\n" + insights_so_far,
-                600
+                CTX + "\n\nINSIGHTS & RECOMMENDATIONS:\n" + insights_so_far, 600
             )
         except Exception as e:
-            st.session_state[KEY_SUMMARY] = f"Error: {e}"
- 
+            st.error(f"API error: {e}")
+            st.stop()
+
 # ── Retrieve AI results ───────────────────────────────────────────────────────
 insights_main = st.session_state.get(KEY_INSIGHTS, "")
 insights_age  = st.session_state.get(KEY_AGE, "")
 insights_disc = st.session_state.get(KEY_DISC, "")
 insights_recs = st.session_state.get(KEY_RECS, "")
 insights_sum  = st.session_state.get(KEY_SUMMARY, "")
- 
-# ── Refresh button ────────────────────────────────────────────────────────────
-with st.expander("⚙️ Regenerate AI insights", expanded=False):
-    if st.button("↻ Regenerate all insights", key="btn_regen"):
-        for k in [KEY_INSIGHTS, KEY_AGE, KEY_DISC, KEY_RECS, KEY_SUMMARY]:
-            if k in st.session_state:
-                del st.session_state[k]
-        st.rerun()
-    if not api_key:
-        st.warning("Enter your OpenAI API key on the Home page to generate insights.")
  
 # ═════════════════════════════════════════════════════════════════════════════
 # 2. KPI ROW
@@ -404,11 +379,7 @@ left, right = st.columns([1.1, 0.9], gap="large")
  
 # ── LEFT: numbered insight blocks ────────────────────────────────────────────
 with left:
-    st.markdown("<div style='font-size:14px;font-weight:600;color:#333;"
-                "margin-bottom:10px;'>Insights</div>", unsafe_allow_html=True)
- 
     if insights_main:
-        # Parse numbered lines
         lines  = [l.strip() for l in insights_main.split("\n") if l.strip()]
         blocks = []
         current = ""
@@ -421,22 +392,21 @@ with left:
                 current += " " + line
         if current:
             blocks.append(current.strip())
- 
+
         for i, block in enumerate(blocks[:5], 1):
-            # Strip leading number
             text = block.lstrip("0123456789. ").strip()
-            # Split title from body if ":" present
-            if ": " in text[:60]:
-                title, body = text.split(": ", 1)
+            # Strip title if present (everything before first ": ")
+            if ": " in text[:80]:
+                _, body = text.split(": ", 1)
             else:
-                title, body = f"Insight {i}", text
+                body = text
             st.markdown(f"""
-            <div class='insight-block'>
-              <div class='insight-num'>Insight {i} · {title}</div>
+            <div style='padding:10px 0 10px 14px;border-left:3px solid {ORANGE};
+                        margin-bottom:12px;'>
               <div class='insight-text'>{body}</div>
             </div>""", unsafe_allow_html=True)
     else:
-        st.markdown(placeholder("Insights will appear here once the API key is set on the Home page."),
+        st.markdown(placeholder("Click <b>🚀 Generate AI Insights</b> to load insights."),
                     unsafe_allow_html=True)
  
 # ── RIGHT: two data tables ────────────────────────────────────────────────────
@@ -532,9 +502,6 @@ with row2_left:
  
 # ── RIGHT column: age insights + discovery insights ───────────────────────────
 with row2_right:
-    # Age insights
-    st.markdown("<div style='font-size:13px;font-weight:600;color:#333;"
-                "margin-bottom:6px;'>Demographic Insights</div>", unsafe_allow_html=True)
     if insights_age:
         lines = [l.strip() for l in insights_age.split("\n") if l.strip()]
         items = [l.lstrip("•- ").strip() for l in lines if l.startswith(("•", "-")) or l]
@@ -542,13 +509,11 @@ with row2_right:
         st.markdown(f"<div class='insight-box'><ul>{li}</ul></div>",
                     unsafe_allow_html=True)
     else:
-        st.markdown(placeholder("Demographic insights loading…"), unsafe_allow_html=True)
- 
+        st.markdown(placeholder("Click <b>🚀 Generate AI Insights</b> to load demographic insights."),
+                    unsafe_allow_html=True)
+
     st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
  
-    # Discovery insights
-    st.markdown("<div style='font-size:13px;font-weight:600;color:#333;"
-                "margin-bottom:6px;'>Marketing & Discovery Insights</div>", unsafe_allow_html=True)
     if insights_disc:
         lines = [l.strip() for l in insights_disc.split("\n") if l.strip()]
         items = [l.lstrip("•- ").strip() for l in lines if l.startswith(("•", "-")) or l]
@@ -556,7 +521,8 @@ with row2_right:
         st.markdown(f"<div class='insight-box'><ul>{li}</ul></div>",
                     unsafe_allow_html=True)
     else:
-        st.markdown(placeholder("Marketing insights loading…"), unsafe_allow_html=True)
+        st.markdown(placeholder("Click <b>🚀 Generate AI Insights</b> to load marketing insights."),
+                    unsafe_allow_html=True)
  
 st.markdown("<div style='margin-top:20px'></div>", unsafe_allow_html=True)
  
@@ -581,20 +547,22 @@ if insights_recs:
             current += " " + line
     if current:
         rblocks.append(current.strip())
- 
-    for i, block in enumerate(rblocks[:3], 1):
+
+    for block in rblocks[:3]:
         text = block.lstrip("0123456789. ").strip()
+        # Strip title if present
         if ": " in text[:80]:
-            title, body = text.split(": ", 1)
+            _, body = text.split(": ", 1)
         else:
-            title, body = f"Recommendation {i}", text
+            body = text
+        # Also strip any **bold** markdown titles the model may add
+        body = body.lstrip("*").strip()
         st.markdown(f"""
         <div class='rec-card'>
-          <div class='rec-num'>Recommendation {i} · {title}</div>
           <div class='rec-text'>{body}</div>
         </div>""", unsafe_allow_html=True)
 else:
-    st.markdown(placeholder("Recommendations will appear here once the API key is set."),
+    st.markdown(placeholder("Click <b>🚀 Generate AI Insights</b> to load recommendations."),
                 unsafe_allow_html=True)
  
 st.markdown("<div style='margin-top:20px'></div>", unsafe_allow_html=True)
@@ -611,18 +579,7 @@ if insights_sum:
     st.markdown(f"<div class='summary-box'>{insights_sum}</div>",
                 unsafe_allow_html=True)
 else:
-    # Static fallback when no API key
-    pct_return = round(100 * (df[return_col].isin(["Very likely", "Likely"])).sum() / n, 1) \
-                 if return_col in df.columns else "N/A"
-    fallback = (
-        f"Monkey Baa Theatre continues to deliver exceptional experiences, with {pct_excellent}% of "
-        f"respondents rating their visit as Excellent and a Net Promoter Score of {nps_score}, "
-        f"reflecting strong audience advocacy. The {pct_return}% intent-to-return rate and high enjoyment "
-        f"ratings confirm the company's ability to create lasting impressions on young audiences and their "
-        f"families, demonstrating clear social and cultural value. For sponsors, this data underscores a "
-        f"highly engaged, loyal audience base — making Monkey Baa a compelling investment for organisations "
-        f"committed to arts education, community wellbeing, and youth development."
-    )
-    st.markdown(f"<div class='summary-box'>{fallback}</div>", unsafe_allow_html=True)
+    st.markdown(placeholder("Click <b>🚀 Generate AI Insights</b> to load the executive summary."),
+                unsafe_allow_html=True)
  
 st.markdown("<div style='margin-top:24px'></div>", unsafe_allow_html=True)
