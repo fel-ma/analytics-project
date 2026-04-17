@@ -24,6 +24,7 @@ GRAY_TEXT   = "#555555"
 st.markdown(f"""
 <style>
   .stApp {{ background-color: {BEIGE}; }}
+  [data-testid="stSidebarCollapseButton"] {{ display: none !important; }}
  
   /* ── KPI cards ── */
   .kpi-card {{

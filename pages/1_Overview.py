@@ -28,6 +28,15 @@ from utils.data_loader import build_context
 from openai import OpenAI
 
 # ─────────────────────────────────────────────────────────
+# CSS - Disable sidebar collapse button
+# ─────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+  [data-testid="stSidebarCollapseButton"] { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────
 # Prompt
 # ─────────────────────────────────────────────────────────
 PROMPT = """You are a senior analyst preparing a board-level executive report for an Australian children's theatre company.

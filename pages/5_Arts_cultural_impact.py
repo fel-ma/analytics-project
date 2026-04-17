@@ -31,6 +31,7 @@ YELLOW      = "#F0A500"
 st.markdown(f"""
 <style>
   .stApp {{ background-color:{BEIGE}; }}
+  [data-testid="stSidebarCollapseButton"] {{ display: none !important; }}
 
   .kpi-card {{
     background-color:{ORANGE}; border-radius:12px;
