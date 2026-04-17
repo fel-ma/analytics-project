@@ -22,13 +22,6 @@ GRAY_TEXT   = "#555555"
 
 apply_styles()
 
-# ─────────────────────────────────────────────────────────
-# Sidebar Title
-# ─────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### AI Reporting System")
-    st.divider()
-
 
 # ── Helpers ──────────────────────────────────────────────
 def build_context(df):
@@ -527,7 +520,7 @@ Professional, warm tone. No headers. No bullet points.""",
             st.stop()
 
 # ── Section 1: Line chart interactive (Plotly) + insights ──
-st.markdown("<hr class='div'>", unsafe_allow_html=True)
+st.markdown("<div class='card'>", unsafe_allow_html=True)
 c1, c2 = st.columns([4, 6])
 with c1:
     yearly = df.groupby("Year")["Audience_n"].sum().reset_index()
@@ -592,10 +585,10 @@ with c2:
     st.markdown(bullets_html(insights_main) if insights_main
                 else placeholder("Click <b>Generate AI Insights</b> to load analysis."),
                 unsafe_allow_html=True)
-st.markdown("<hr class='div'>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Section 2: insights left, table right ────────────────
-st.markdown("<hr class='div'>", unsafe_allow_html=True)
+st.markdown("<div class='card'>", unsafe_allow_html=True)
 c3, c4 = st.columns([5, 5])
 with c3:
     st.markdown(bullets_html(insights_states) if insights_states
@@ -607,7 +600,7 @@ with c4:
     sdf["Audience"] = sdf["Audience"].round(0).astype(int)
     grand_total = sdf["Audience"].sum()
     sdf["% of total"] = sdf["Audience"].apply(
-        lambda v: f"{v/grand_total*100:.1f}%"
+        lambda v: f"{v/grand_total*100:.1f}% of {grand_total:,}"
     )
     rows = "".join(
         f"<tr><td style='text-align:center;'>{r['State']}</td>"
@@ -638,10 +631,10 @@ with c4:
       table tr:hover {{ background-color: #fce8dc; }}
     </style>
     """, unsafe_allow_html=True)
-st.markdown("<hr class='div'>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Section 3: Pie interactive (Plotly) + regional insights ──
-st.markdown("<hr class='div'>", unsafe_allow_html=True)
+st.markdown("<div class='card'>", unsafe_allow_html=True)
 c5, c6 = st.columns([4, 6])
 with c5:
     reg = df.groupby("Regional II")["Audience_n"].sum()
@@ -691,7 +684,7 @@ with c6:
     st.markdown(bullets_html(insights_region) if insights_region
                 else placeholder("Geographic insights will appear after generation."),
                 unsafe_allow_html=True)
-st.markdown("<hr class='div'>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ── Recommendation Details Section ───────────────────────
@@ -902,17 +895,240 @@ st.markdown(
 # ── Download ─────────────────────────────────────────────
 if insights_summary:
     st.divider()
+    
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+    import matplotlib.pyplot as plt
+    
+    def fig_to_bytes(fig):
+        buffer = BytesIO()
+        fig.savefig(buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+        buffer.seek(0)
+        return buffer
+    
+    def generate_full_pdf_report(df, total_aud, regional_pct, top_state, 
+                                 insights_main, insights_states, insights_region, 
+                                 insights_summary, insights_weak, insights_rec, insights_recdet):
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+                               topMargin=0.4*inch, bottomMargin=0.4*inch,
+                               leftMargin=0.6*inch, rightMargin=0.6*inch)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=22,
+                                    textColor=colors.HexColor('#222222'), spaceAfter=2, spaceBefore=0, fontName='Helvetica-Bold')
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], fontSize=14,
+                                       textColor=colors.HexColor('#E8673A'), spaceAfter=8, spaceBefore=0, fontName='Helvetica-Bold')
+        heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading3'], fontSize=12,
+                                      textColor=colors.HexColor('#333333'), spaceAfter=6, spaceBefore=8, fontName='Helvetica-Bold')
+        body_style = ParagraphStyle('CustomBody', parent=styles['BodyText'], fontSize=9,
+                                   textColor=colors.HexColor('#555555'), spaceAfter=4, leading=11, alignment=TA_JUSTIFY)
+        bullet_style = ParagraphStyle('BulletStyle', parent=styles['BodyText'], fontSize=9,
+                                     textColor=colors.HexColor('#555555'), spaceAfter=3, leftIndent=18, leading=11, bulletIndent=8)
+        
+        # PÁGINA 1
+        story.append(Paragraph("MONKEY BAA THEATRE", title_style))
+        story.append(Paragraph("Expanding Youth Theatre Access: <font color='#E8673A'>Social Outcomes Impact</font>", subtitle_style))
+        story.append(Spacer(1, 0.08*inch))
+        
+        # KPI Cards con Paragraphs en lugar de texto plano
+        kpi_col1 = Paragraph(f"<b>Young People Reached</b><br/>{total_aud:,}", 
+                            ParagraphStyle('KPI', parent=styles['Normal'], fontSize=11, 
+                                         textColor=colors.white, alignment=TA_CENTER, fontName='Helvetica-Bold'))
+        kpi_col2 = Paragraph(f"<b>% Regional Audience</b><br/>{regional_pct:.0f}%", 
+                            ParagraphStyle('KPI', parent=styles['Normal'], fontSize=11, 
+                                         textColor=colors.white, alignment=TA_CENTER, fontName='Helvetica-Bold'))
+        kpi_col3 = Paragraph(f"<b>Top Performing State</b><br/>{top_state}", 
+                            ParagraphStyle('KPI', parent=styles['Normal'], fontSize=11, 
+                                         textColor=colors.white, alignment=TA_CENTER, fontName='Helvetica-Bold'))
+        
+        kpi_data = [[kpi_col1, kpi_col2, kpi_col3]]
+        kpi_table = Table(kpi_data, colWidths=[2*inch, 2*inch, 2*inch])
+        kpi_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#E8673A')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 16),
+            ('TOPPADDING', (0, 0), (-1, -1), 16),
+        ]))
+        story.append(kpi_table)
+        story.append(Spacer(1, 0.12*inch))
+        
+        # Gráfico 1
+        try:
+            yearly = df.groupby("Year")["Audience_n"].sum().reset_index()
+            yearly["Year"] = yearly["Year"].astype(int)
+            fig1, ax1 = plt.subplots(figsize=(6.5, 2.5))
+            ax1.plot(yearly["Year"], yearly["Audience_n"], marker='o', color='#E8673A', linewidth=2.5, markersize=6)
+            ax1.fill_between(yearly["Year"], yearly["Audience_n"], alpha=0.15, color='#E8673A')
+            ax1.set_title("Total Audience Reached", fontsize=11, fontweight='bold', color='#333')
+            ax1.set_xlabel("Year", fontsize=9)
+            ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x/1000)}k'))
+            ax1.grid(True, alpha=0.2)
+            ax1.set_facecolor('#F5F0EA')
+            fig1.patch.set_facecolor('white')
+            plt.tight_layout()
+            img1_buffer = fig_to_bytes(fig1)
+            img1 = Image(img1_buffer, width=6.5*inch, height=2.5*inch)
+            story.append(img1)
+            plt.close(fig1)
+        except:
+            story.append(Paragraph("<i>Chart generation failed</i>", body_style))
+        
+        story.append(Spacer(1, 0.08*inch))
+        story.append(Paragraph("Key Trends:", heading_style))
+        for line in insights_main.split('\n'):
+            if line.strip().startswith('•'):
+                story.append(Paragraph(line.strip(), bullet_style))
+        
+        story.append(PageBreak())
+        
+        # PÁGINA 2
+        story.append(Paragraph("Audience by State", heading_style))
+        sdf = df.groupby("State")["Audience_n"].sum().sort_values(ascending=False).reset_index()
+        sdf.columns = ["State","Audience"]
+        sdf["Audience"] = sdf["Audience"].round(0).astype(int)
+        grand_total = sdf["Audience"].sum()
+        sdf["% of total"] = sdf["Audience"].apply(lambda v: f"{v/grand_total*100:.1f}%")
+        
+        table_data = [["State", "Audience", "% of total"]]
+        for _, row in sdf.iterrows():
+            table_data.append([row['State'], f"{row['Audience']:,}", row['% of total']])
+        
+        state_table = Table(table_data, colWidths=[2*inch, 2*inch, 2*inch])
+        state_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8673A')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#ddd')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#fdf6f2'), colors.white]),
+        ]))
+        story.append(state_table)
+        story.append(Spacer(1, 0.08*inch))
+        story.append(Paragraph("State Insights:", heading_style))
+        for line in insights_states.split('\n'):
+            if line.strip().startswith('•'):
+                story.append(Paragraph(line.strip(), bullet_style))
+        
+        story.append(Spacer(1, 0.12*inch))
+        
+        # Gráfico 2: Pie
+        try:
+            reg = df.groupby("Regional II")["Audience_n"].sum()
+            for cat in ["Metro","Regional","Remote"]:
+                if cat not in reg.index: reg[cat] = 0
+            reg = reg[["Metro","Regional","Remote"]]
+            fig2, ax2 = plt.subplots(figsize=(5, 2.2))
+            colors_pie = ['#E8673A', '#4CAF7D', '#C0392B']
+            ax2.pie(reg.values, labels=reg.index, autopct='%1.0f%%', colors=colors_pie, startangle=90)
+            ax2.set_title("Audience by Region Type", fontsize=11, fontweight='bold', color='#333')
+            fig2.patch.set_facecolor('white')
+            plt.tight_layout()
+            img2_buffer = fig_to_bytes(fig2)
+            img2 = Image(img2_buffer, width=5*inch, height=2.2*inch)
+            story.append(img2)
+            plt.close(fig2)
+        except:
+            story.append(Paragraph("<i>Chart generation failed</i>", body_style))
+        
+        story.append(Spacer(1, 0.06*inch))
+        story.append(Paragraph("Geographic Distribution:", heading_style))
+        for line in insights_region.split('\n'):
+            if line.strip().startswith('•'):
+                story.append(Paragraph(line.strip(), bullet_style))
+        
+        story.append(Spacer(1, 0.12*inch))
+        
+        # PÁGINA 3: Weaknesses y Recommendations
+        story.append(Paragraph("Key Weaknesses", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        
+        try:
+            import json as _json
+            w_data = _json.loads(insights_weak) if insights_weak else {}
+            w1_title = w_data.get("weakness_1", {}).get("title", "Weakness 1")
+            w1_points = w_data.get("weakness_1", {}).get("points", [])
+            w2_title = w_data.get("weakness_2", {}).get("title", "Weakness 2")
+            w2_points = w_data.get("weakness_2", {}).get("points", [])
+            
+            story.append(Paragraph(f"<b>⚠️ {w1_title}</b>", body_style))
+            for point in w1_points:
+                story.append(Paragraph(point, bullet_style))
+            story.append(Spacer(1, 0.05*inch))
+            story.append(Paragraph(f"<b>⚠️ {w2_title}</b>", body_style))
+            for point in w2_points:
+                story.append(Paragraph(point, bullet_style))
+        except:
+            pass
+        
+        story.append(Spacer(1, 0.12*inch))
+        story.append(Paragraph("Recommendations", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        
+        try:
+            import json as _json
+            r_data = _json.loads(insights_rec) if insights_rec else {}
+            rec_title = r_data.get("title", "Primary Recommendation")
+            rec_desc = r_data.get("description", "")
+            
+            story.append(Paragraph(f"<b>★ {rec_title}</b>", body_style))
+            story.append(Paragraph(rec_desc, bullet_style))
+            
+            rd_data = _json.loads(insights_recdet) if insights_recdet else {}
+            rd_items = rd_data.get("items", [])
+            
+            if rd_items:
+                story.append(Spacer(1, 0.05*inch))
+                story.append(Paragraph("<b>Recommendation Details:</b>", body_style))
+                for i, item in enumerate(rd_items, 1):
+                    story.append(Paragraph(f"<b>{i}. {item.get('title', '')}</b>", body_style))
+                    for point in item.get("points", []):
+                        story.append(Paragraph(point, bullet_style))
+        except:
+            pass
+        
+        story.append(PageBreak())
+        
+        # PÁGINA 4: Summary
+        story.append(Paragraph("Executive Summary", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        story.append(Paragraph(insights_summary, body_style))
+        
+        story.append(Spacer(1, 0.2*inch))
+        story.append(Paragraph("Report generated by Monkey Baa Theatre AI Reporting System", 
+                              ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, 
+                                           textColor=colors.HexColor('#999'), alignment=TA_CENTER)))
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+    
     md = f"""# Monkey Baa — Access & Audience Reach
 **Total:** {total_audience:,} | **Regional:** {regional_pct:.0f}% | **Top State:** {top_state}
 
 ## Trends
 {insights_main}
 
-## Geographic Distribution
-{insights_region}
-
 ## Summary
 {insights_summary}
 """
-    st.download_button("📄 Download Report (.md)", md,
-                       file_name="access_audience_reach.md", mime="text/markdown")
+    
+    pdf_bytes = generate_full_pdf_report(df, total_audience, regional_pct, top_state,
+                                        insights_main, insights_states, insights_region,
+                                        insights_summary, insights_weak, insights_rec, insights_recdet)
+    st.download_button(
+        "📄 Download Report (.pdf)",
+        data=pdf_bytes,
+        file_name="access_audience_reach.pdf",
+        mime="application/pdf"
+    )
