@@ -22,6 +22,13 @@ GRAY_TEXT   = "#555555"
 
 apply_styles()
 
+# ─────────────────────────────────────────────────────────
+# Sidebar Title
+# ─────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### AI Reporting System")
+    st.divider()
+
 
 # ── Helpers ──────────────────────────────────────────────
 def build_context(df):
@@ -520,7 +527,7 @@ Professional, warm tone. No headers. No bullet points.""",
             st.stop()
 
 # ── Section 1: Line chart interactive (Plotly) + insights ──
-st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
 c1, c2 = st.columns([4, 6])
 with c1:
     yearly = df.groupby("Year")["Audience_n"].sum().reset_index()
@@ -585,10 +592,10 @@ with c2:
     st.markdown(bullets_html(insights_main) if insights_main
                 else placeholder("Click <b>Generate AI Insights</b> to load analysis."),
                 unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
 # ── Section 2: insights left, table right ────────────────
-st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
 c3, c4 = st.columns([5, 5])
 with c3:
     st.markdown(bullets_html(insights_states) if insights_states
@@ -631,10 +638,10 @@ with c4:
       table tr:hover {{ background-color: #fce8dc; }}
     </style>
     """, unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
 # ── Section 3: Pie interactive (Plotly) + regional insights ──
-st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
 c5, c6 = st.columns([4, 6])
 with c5:
     reg = df.groupby("Regional II")["Audience_n"].sum()
@@ -684,7 +691,7 @@ with c6:
     st.markdown(bullets_html(insights_region) if insights_region
                 else placeholder("Geographic insights will appear after generation."),
                 unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
 
 # ── Recommendation Details Section ───────────────────────
