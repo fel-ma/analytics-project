@@ -27,6 +27,7 @@ st.markdown(f"""
 <style>
   .stApp {{ background-color: {BEIGE}; }}
   [data-testid="stHeader"] {{ display: none !important; }}
+  [data-testid="stSidebarCollapseButton"] {{ display: none !important; }}
   [data-testid="stSidebar"] {{ background-color: {TEAL_DARK} !important; }}
   [data-testid="stSidebar"] * {{ color: #ffffff !important; }}
   [data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,0.2) !important; }}
