@@ -36,6 +36,9 @@ def apply_styles():
       /* Hide top header bar */
       [data-testid="stHeader"] {{ display: none !important; }}
 
+      /* Disable sidebar collapse button */
+      [data-testid="stSidebarCollapseButton"] {{ display: none !important; }}
+
       /* Sidebar background */
       [data-testid="stSidebar"] {{ background-color: {TEAL_DARK} !important; }}
       [data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,0.2) !important; }}
