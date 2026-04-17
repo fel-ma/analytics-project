@@ -37,6 +37,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────
+# Sidebar Title
+# ─────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### AI Reporting System")
+    st.divider()
+
+# ─────────────────────────────────────────────────────────
 # Prompt
 # ─────────────────────────────────────────────────────────
 PROMPT = """You are a senior analyst preparing a board-level executive report for an Australian children's theatre company.

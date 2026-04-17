@@ -21,6 +21,13 @@ BEIGE       = "#F5F0EA"
 WHITE       = "#FFFFFF"
 GRAY_TEXT   = "#555555"
 
+# ─────────────────────────────────────────────────────────
+# Sidebar Title
+# ─────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### AI Reporting System")
+    st.divider()
+
 # ── Styles — exact copy of page 2 pattern ────────────────
 st.markdown(f"""
 <style>

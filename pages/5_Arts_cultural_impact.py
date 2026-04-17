@@ -28,6 +28,13 @@ GRAY_TEXT   = "#555555"
 GREEN       = "#4CAF7D"
 YELLOW      = "#F0A500"
 
+# ─────────────────────────────────────────────────────────
+# Sidebar Title
+# ─────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### AI Reporting System")
+    st.divider()
+
 st.markdown(f"""
 <style>
   .stApp {{ background-color:{BEIGE}; }}

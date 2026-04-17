@@ -22,6 +22,13 @@ GRAY_TEXT   = "#555555"
 
 apply_styles()
 
+# ─────────────────────────────────────────────────────────
+# Sidebar Title
+# ─────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### AI Reporting System")
+    st.divider()
+
 
 # ── Helpers ──────────────────────────────────────────────
 def build_context(df):

@@ -18,6 +18,13 @@ import streamlit as st
 from openai import OpenAI
 
 # ─────────────────────────────────────────────────────────
+# Sidebar Title
+# ─────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### AI Reporting System")
+    st.divider()
+
+# ─────────────────────────────────────────────────────────
 # Design — same tokens as page 2
 # ─────────────────────────────────────────────────────────
 ORANGE      = "#E8673A"

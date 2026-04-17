@@ -19,6 +19,13 @@ ORANGE_DARK = "#C4512A"
 BEIGE       = "#F5F0EA"
 WHITE       = "#FFFFFF"
 GRAY_TEXT   = "#555555"
+
+# ─────────────────────────────────────────────────────────
+# Sidebar Title
+# ─────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### AI Reporting System")
+    st.divider()
  
 # ── CSS (mirrors page 2 exactly) ─────────────────────────────────────────────
 st.markdown(f"""
