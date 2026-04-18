@@ -908,19 +908,6 @@ if ai_summary:
         except:
             story.append(Paragraph("No positive comments available", body_style))
         
-        story.append(Spacer(1, 0.12*inch))
-        
-        story.append(Paragraph("Key Improvement Opportunities", heading_style))
-        story.append(Spacer(1, 0.05*inch))
-        
-        try:
-            neg_list = list(neg)[:6]
-            for i, comment in enumerate(neg_list, 1):
-                clean = str(comment)[:200] if comment else ""
-                story.append(Paragraph(f"<b>{i}. </b>{clean}...", bullet_style))
-        except:
-            story.append(Paragraph("No improvement suggestions available", body_style))
-        
         story.append(PageBreak())
         
         # PÁGINA 3: Key Weaknesses + Recommendations
