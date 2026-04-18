@@ -804,7 +804,7 @@ if ai_summary:
         buffer.seek(0)
         return buffer
     
-    def generate_feedback_pdf_report(df_survey, total, pos, neu, neg, ai_insights, ai_summary):
+    def generate_feedback_pdf_report(TOPIC_DATA, total, pos, neu, neg, ai_insights, ai_weak, ai_rec, ai_recdet, ai_summary):
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter,
                                topMargin=0.4*inch, bottomMargin=0.4*inch,
@@ -823,7 +823,7 @@ if ai_summary:
         bullet_style = ParagraphStyle('BulletStyle', parent=styles['BodyText'], fontSize=9,
                                      textColor=colors.HexColor('#555555'), spaceAfter=3, leftIndent=18, leading=11, bulletIndent=8)
         
-        # PÁGINA 1
+        # PÁGINA 1: Title + KPIs
         story.append(Paragraph("MONKEY BAA THEATRE", title_style))
         story.append(Paragraph("Audience Feedback Report: <font color='#E8673A'>Experience & Insights</font>", subtitle_style))
         story.append(Spacer(1, 0.08*inch))
@@ -855,67 +855,125 @@ if ai_summary:
         story.append(kpi_table)
         story.append(Spacer(1, 0.12*inch))
         
-        # Gráfico 1: Sentiment Distribution Pie Chart
+        # Horizontal Bar Chart: Topics Most Mentioned
         try:
-            fig1, ax1 = plt.subplots(figsize=(5, 2.2))
-            sentiments = [len(pos), len(neu), len(neg)]
-            labels = ['Positive', 'Neutral', 'Suggestions']
-            colors_pie = ['#4CAF7D', '#F0A500', '#E05252']
-            ax1.pie(sentiments, labels=labels, autopct='%1.0f%%', colors=colors_pie, startangle=90, textprops={'fontsize': 8})
-            ax1.set_title("Sentiment Distribution", fontsize=11, fontweight='bold', color='#333')
-            fig1.patch.set_facecolor('white')
+            topics = list(TOPIC_DATA.keys())
+            counts = list(TOPIC_DATA.values())
+            
+            sorted_pairs = sorted(zip(counts, topics))
+            counts_s = [p[0] for p in sorted_pairs]
+            topics_s = [p[1] for p in sorted_pairs]
+            colors_s = ['#E8673A' if c == max(counts_s) else '#F2B99B' for c in counts_s]
+            
+            fig_bar, ax_bar = plt.subplots(figsize=(6.5, 3))
+            bars = ax_bar.barh(topics_s, counts_s, color=colors_s, edgecolor='white', linewidth=0.5)
+            ax_bar.set_title("Topics Most Mentioned in Feedback", fontsize=11, fontweight='bold', color='#333')
+            ax_bar.set_xlabel("Mentions", fontsize=9)
+            ax_bar.tick_params(axis='y', labelsize=9)
+            ax_bar.tick_params(axis='x', labelsize=9)
+            ax_bar.grid(True, alpha=0.2, axis='x')
+            ax_bar.set_facecolor('#F5F0EA')
+            fig_bar.patch.set_facecolor('white')
+            
+            for i, (bar, count) in enumerate(zip(bars, counts_s)):
+                ax_bar.text(count, bar.get_y() + bar.get_height()/2, f' {count}', 
+                           va='center', fontsize=9, color='#333')
+            
             plt.tight_layout()
-            img1_buffer = fig_to_bytes(fig1)
-            img1 = Image(img1_buffer, width=5*inch, height=2.2*inch)
-            story.append(img1)
-            plt.close(fig1)
+            img_bar_buffer = fig_to_bytes(fig_bar)
+            img_bar = Image(img_bar_buffer, width=6.5*inch, height=3*inch)
+            story.append(img_bar)
+            plt.close(fig_bar)
         except:
             story.append(Paragraph("<i>Chart generation failed</i>", body_style))
         
         story.append(Spacer(1, 0.08*inch))
-        story.append(Paragraph("Sentiment Analysis:", heading_style))
-        story.append(Spacer(1, 0.05*inch))
-        
-        # Key Insights
-        story.append(Paragraph(ai_insights if ai_insights else "No insights available", body_style))
+        story.append(Paragraph("Key Insights:", heading_style))
+        if ai_insights:
+            for line in ai_insights.split('\n'):
+                if line.strip().startswith('•') or line.strip().startswith('-'):
+                    story.append(Paragraph(line.strip(), bullet_style))
         
         story.append(PageBreak())
         
-        # PÁGINA 2: Positive Comments
+        # PÁGINA 2: Positive Comments + Improvement Opportunities
         story.append(Paragraph("Highlighted Positive Comments", heading_style))
         story.append(Spacer(1, 0.05*inch))
         
         try:
-            pos_comments = df_survey[df_survey['sentiment'] == 'positive']['comment'].dropna().unique()
-            if len(pos_comments) > 0:
-                for i, comment in enumerate(pos_comments[:6], 1):
-                    clean_comment = str(comment)[:250]
-                    story.append(Paragraph(f"<b>{i}. </b>{clean_comment}...", bullet_style))
-            else:
-                story.append(Paragraph("No positive comments available", body_style))
+            pos_list = list(pos)[:6]
+            for i, comment in enumerate(pos_list, 1):
+                clean = str(comment)[:200] if comment else ""
+                story.append(Paragraph(f"<b>{i}. </b>{clean}...", bullet_style))
         except:
-            story.append(Paragraph("Could not load positive comments", body_style))
+            story.append(Paragraph("No positive comments available", body_style))
         
         story.append(Spacer(1, 0.12*inch))
         
-        # Key Improvement Opportunities
         story.append(Paragraph("Key Improvement Opportunities", heading_style))
         story.append(Spacer(1, 0.05*inch))
         
         try:
-            neg_comments = df_survey[df_survey['sentiment'] == 'negative']['comment'].dropna().unique()
-            if len(neg_comments) > 0:
-                for i, comment in enumerate(neg_comments[:6], 1):
-                    clean_comment = str(comment)[:250]
-                    story.append(Paragraph(f"<b>{i}. </b>{clean_comment}...", bullet_style))
-            else:
-                story.append(Paragraph("No improvement suggestions available", body_style))
+            neg_list = list(neg)[:6]
+            for i, comment in enumerate(neg_list, 1):
+                clean = str(comment)[:200] if comment else ""
+                story.append(Paragraph(f"<b>{i}. </b>{clean}...", bullet_style))
         except:
-            story.append(Paragraph("Could not load improvement suggestions", body_style))
+            story.append(Paragraph("No improvement suggestions available", body_style))
         
         story.append(PageBreak())
         
-        # PÁGINA 3: Executive Summary
+        # PÁGINA 3: Key Weaknesses + Recommendations
+        story.append(Paragraph("Key Weaknesses", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        
+        try:
+            import json as _json
+            w_data = _json.loads(ai_weak) if ai_weak else {}
+            w1_title = w_data.get("weakness_1", {}).get("title", "Weakness 1")
+            w1_points = w_data.get("weakness_1", {}).get("points", [])
+            w2_title = w_data.get("weakness_2", {}).get("title", "Weakness 2")
+            w2_points = w_data.get("weakness_2", {}).get("points", [])
+            
+            story.append(Paragraph(f"<b>⚠️ {w1_title}</b>", body_style))
+            for point in w1_points:
+                story.append(Paragraph(point, bullet_style))
+            story.append(Spacer(1, 0.08*inch))
+            story.append(Paragraph(f"<b>⚠️ {w2_title}</b>", body_style))
+            for point in w2_points:
+                story.append(Paragraph(point, bullet_style))
+        except:
+            pass
+        
+        story.append(Spacer(1, 0.12*inch))
+        story.append(Paragraph("Recommendations", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        
+        try:
+            import json as _json
+            r_data = _json.loads(ai_rec) if ai_rec else {}
+            rec_title = r_data.get("title", "Primary Recommendation")
+            rec_desc = r_data.get("description", "")
+            
+            story.append(Paragraph(f"<b>★ {rec_title}</b>", body_style))
+            story.append(Paragraph(rec_desc, bullet_style))
+            
+            rd_data = _json.loads(ai_recdet) if ai_recdet else {}
+            rd_items = rd_data.get("items", [])
+            
+            if rd_items:
+                story.append(Spacer(1, 0.08*inch))
+                story.append(Paragraph("<b>Recommendation Details:</b>", body_style))
+                for i, item in enumerate(rd_items, 1):
+                    story.append(Paragraph(f"<b>{i}. {item.get('title', '')}</b>", body_style))
+                    for point in item.get("points", []):
+                        story.append(Paragraph(point, bullet_style))
+        except:
+            pass
+        
+        story.append(PageBreak())
+        
+        # PÁGINA 4: Executive Summary
         story.append(Paragraph("Executive Summary", heading_style))
         story.append(Spacer(1, 0.05*inch))
         story.append(Paragraph(ai_summary if ai_summary else "No summary available", body_style))
@@ -929,7 +987,7 @@ if ai_summary:
         buffer.seek(0)
         return buffer.getvalue()
     
-    pdf_bytes = generate_feedback_pdf_report(df_survey, total, pos, neu, neg, ai_insights, ai_summary)
+    pdf_bytes = generate_feedback_pdf_report(TOPIC_DATA, total, pos, neu, neg, ai_insights, ai_weak, ai_rec, ai_recdet, ai_summary)
     st.download_button(
         "📄 Download Report (.pdf)",
         data=pdf_bytes,
