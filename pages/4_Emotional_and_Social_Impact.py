@@ -387,9 +387,10 @@ st.markdown("<div style='font-size:15px;font-weight:600;color:#333;margin-bottom
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
 if ins_rec:
-    import json
+    import json, re as _re
     try:
-        rec_data  = json.loads(ins_rec)
+        _clean    = _re.sub(r"```(?:json)?", "", ins_rec).strip().rstrip("`").strip()
+        rec_data  = json.loads(_clean)
         rec_items = rec_data.get("items", [])
     except Exception:
         rec_items = []
