@@ -591,3 +591,285 @@ else:
                 unsafe_allow_html=True)
  
 st.markdown("<div style='margin-top:24px'></div>", unsafe_allow_html=True)
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 7. DOWNLOAD PDF
+# ═════════════════════════════════════════════════════════════════════════════
+if insights_sum:
+    st.divider()
+
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_RIGHT
+    import matplotlib.pyplot as plt
+
+    def fig_to_bytes(fig):
+        buf = BytesIO()
+        fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+        buf.seek(0)
+        return buf
+
+    def generate_hqo_pdf(n, pct_excellent, nps_score, nps_mean, pct_negative,
+                         enjoy_data, return_data, age_counts, disc_counts,
+                         insights_main, insights_age, insights_disc,
+                         insights_recs, insights_sum):
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+                                topMargin=0.4*inch, bottomMargin=0.4*inch,
+                                leftMargin=0.6*inch, rightMargin=0.6*inch)
+        story = []
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=22,
+                                     textColor=colors.HexColor('#222222'), spaceAfter=2,
+                                     spaceBefore=0, fontName='Helvetica-Bold')
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], fontSize=13,
+                                        textColor=colors.HexColor('#E8673A'), spaceAfter=6,
+                                        spaceBefore=0, fontName='Helvetica-Bold')
+        heading_style = ParagraphStyle('Heading', parent=styles['Heading3'], fontSize=11,
+                                       textColor=colors.HexColor('#333333'), spaceAfter=5,
+                                       spaceBefore=8, fontName='Helvetica-Bold')
+        body_style = ParagraphStyle('Body', parent=styles['BodyText'], fontSize=9,
+                                    textColor=colors.HexColor('#555555'), spaceAfter=4,
+                                    leading=12, alignment=TA_JUSTIFY)
+        bullet_style = ParagraphStyle('Bullet', parent=styles['BodyText'], fontSize=9,
+                                      textColor=colors.HexColor('#555555'), spaceAfter=4,
+                                      leftIndent=14, leading=12)
+        kpi_style = ParagraphStyle('KPI', parent=styles['Normal'], fontSize=11,
+                                   textColor=colors.white, alignment=TA_CENTER,
+                                   fontName='Helvetica-Bold', leading=14)
+        cell_hdr = ParagraphStyle('CellHdr', parent=styles['Normal'], fontSize=8,
+                                  textColor=colors.white, fontName='Helvetica-Bold')
+        cell_s   = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=8,
+                                  textColor=colors.HexColor('#555555'), leading=11)
+
+        # ── PÁGINA 1: Header + KPIs + Satisfaction Insights + Tables ──
+        story.append(Paragraph("MONKEY BAA THEATRE", title_style))
+        story.append(Paragraph(
+            "High Quality Outcomes: <font color='#E8673A'>Audience Satisfaction &amp; Engagement</font>",
+            subtitle_style))
+        story.append(Spacer(1, 0.08*inch))
+
+        # KPI Cards
+        kpi_data = [[
+            Paragraph(f"<b>Rated the Show Excellent</b><br/>{pct_excellent}%<br/>"
+                      f"<font size='7'>n = {n:,} respondents</font>", kpi_style),
+            Paragraph(f"<b>Net Promoter Score</b><br/>{nps_score}<br/>"
+                      f"<font size='7'>avg score {nps_mean}/10</font>", kpi_style),
+            Paragraph(f"<b>Negative Feedback</b><br/>{pct_negative}%<br/>"
+                      f"<font size='7'>score ≤ 6 / 10</font>", kpi_style),
+        ]]
+        kpi_tbl = Table(kpi_data, colWidths=[2*inch, 2*inch, 2*inch])
+        kpi_tbl.setStyle(TableStyle([
+            ('BACKGROUND',    (0, 0), (-1, -1), colors.HexColor('#E8673A')),
+            ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 14),
+            ('TOPPADDING',    (0, 0), (-1, -1), 14),
+        ]))
+        story.append(kpi_tbl)
+        story.append(Spacer(1, 0.14*inch))
+
+        # Satisfaction & Engagement — numbered insights
+        story.append(Paragraph("Satisfaction &amp; Engagement Analysis", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        if insights_main:
+            lines  = [l.strip() for l in insights_main.split("\n") if l.strip()]
+            blocks = []
+            current = ""
+            for line in lines:
+                if line and line[0].isdigit() and ". " in line[:4]:
+                    if current:
+                        blocks.append(current.strip())
+                    current = line
+                else:
+                    current += " " + line
+            if current:
+                blocks.append(current.strip())
+            for i, block in enumerate(blocks[:5], 1):
+                text = block.lstrip("0123456789. ").strip()
+                if ": " in text[:80]:
+                    _, body = text.split(": ", 1)
+                else:
+                    body = text
+                story.append(Paragraph(f"<b>{i}.</b> {body}", bullet_style))
+
+        story.append(Spacer(1, 0.12*inch))
+
+        # Enjoyment + Return tables side by side
+        def make_data_table(title, rows, total):
+            hdr = [Paragraph(f"<b>{title}</b>", cell_hdr),
+                   Paragraph("<b>Count</b>", ParagraphStyle('CH2', parent=styles['Normal'], fontSize=8, textColor=colors.white, fontName='Helvetica-Bold', alignment=TA_RIGHT)),
+                   Paragraph("<b>%</b>", ParagraphStyle('CH3', parent=styles['Normal'], fontSize=8, textColor=colors.white, fontName='Helvetica-Bold', alignment=TA_RIGHT))]
+            tbl = [hdr]
+            for cat, cnt in rows:
+                pct = cnt / total * 100 if total else 0
+                tbl.append([
+                    Paragraph(cat, cell_s),
+                    Paragraph(f"{cnt:,}", ParagraphStyle('CR', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#555'), alignment=TA_RIGHT)),
+                    Paragraph(f"{pct:.1f}%", ParagraphStyle('CR2', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#555'), alignment=TA_RIGHT)),
+                ])
+            t = Table(tbl, colWidths=[2.1*inch, 0.6*inch, 0.6*inch])
+            t.setStyle(TableStyle([
+                ('BACKGROUND',    (0, 0), (-1, 0), colors.HexColor('#E8673A')),
+                ('TEXTCOLOR',     (0, 0), (-1, 0), colors.white),
+                ('FONTSIZE',      (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING',    (0, 0), (-1, -1), 5),
+                ('GRID',          (0, 0), (-1, -1), 0.4, colors.HexColor('#eeeeee')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#fdf6f2'), colors.white]),
+            ]))
+            return t
+
+        tbl_enjoy  = make_data_table("Enjoyment Ratings",    enjoy_data,  n)
+        tbl_return = make_data_table("Likelihood to Return", return_data, n)
+        side_tbl = Table([[tbl_enjoy, tbl_return]], colWidths=[3.4*inch, 3.4*inch])
+        side_tbl.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (1,0), (1,0), 12)]))
+        story.append(side_tbl)
+
+        story.append(PageBreak())
+
+        # ── PÁGINA 2: Demographics & Discovery ──
+        story.append(Paragraph("Audience Demographics &amp; Discovery", heading_style))
+        story.append(Spacer(1, 0.08*inch))
+
+        # Age bar chart
+        try:
+            age_labels = list(age_counts.keys())
+            age_vals   = list(age_counts.values())
+            age_clrs   = ['#E8673A', '#F4A57A', '#F9C9A8']
+
+            fig_age, ax_age = plt.subplots(figsize=(6.5, 1.8))
+            bars = ax_age.barh(age_labels, age_vals, color=age_clrs, height=0.5)
+            for bar, val in zip(bars, age_vals):
+                pct = val/n*100
+                ax_age.text(bar.get_width() + max(age_vals)*0.02,
+                            bar.get_y() + bar.get_height()/2,
+                            f"{val:,}  ({pct:.1f}%)", va='center', fontsize=8, color='#555')
+            ax_age.set_xlim(0, max(age_vals) * 1.35)
+            ax_age.set_title("Young People Age Groups Attending", fontsize=10, color='#333', fontweight='bold')
+            ax_age.set_facecolor('#F5F0EA')
+            fig_age.patch.set_facecolor('white')
+            ax_age.xaxis.set_visible(False)
+            ax_age.spines['top'].set_visible(False)
+            ax_age.spines['right'].set_visible(False)
+            ax_age.spines['bottom'].set_visible(False)
+            ax_age.tick_params(axis='y', labelsize=9, colors='#444')
+            plt.tight_layout()
+            story.append(Image(fig_to_bytes(fig_age), width=6.5*inch, height=1.8*inch))
+            plt.close(fig_age)
+        except Exception:
+            pass
+
+        story.append(Spacer(1, 0.06*inch))
+
+        # Age insights
+        if insights_age:
+            lines = [l.strip() for l in insights_age.split("\n") if l.strip()]
+            items = [l.lstrip("•- ").strip() for l in lines if l.startswith(("•", "-")) or l]
+            for item in items[:2]:
+                story.append(Paragraph(item, bullet_style))
+
+        story.append(Spacer(1, 0.12*inch))
+
+        # Discovery bar chart
+        try:
+            disc_sorted = sorted(disc_counts.items(), key=lambda x: x[1], reverse=True)
+            d_labels = [d[0] for d in disc_sorted]
+            d_vals   = [d[1] for d in disc_sorted]
+            d_clrs   = ['#E8673A' if i == 0 else '#F4A57A' if i < 2 else '#F9C9A8'
+                        for i in range(len(d_vals))]
+
+            fig_disc, ax_disc = plt.subplots(figsize=(6.5, 2.4))
+            bars = ax_disc.barh(d_labels[::-1], d_vals[::-1], color=d_clrs[::-1], height=0.5)
+            for bar, val in zip(bars, d_vals[::-1]):
+                ax_disc.text(bar.get_width() + max(d_vals)*0.02,
+                             bar.get_y() + bar.get_height()/2,
+                             f"{val:,}", va='center', fontsize=8, color='#555')
+            ax_disc.set_xlim(0, max(d_vals) * 1.25)
+            ax_disc.set_title("How Audiences Discovered Monkey Baa", fontsize=10, color='#333', fontweight='bold')
+            ax_disc.set_facecolor('#F5F0EA')
+            fig_disc.patch.set_facecolor('white')
+            ax_disc.xaxis.set_visible(False)
+            ax_disc.spines['top'].set_visible(False)
+            ax_disc.spines['right'].set_visible(False)
+            ax_disc.spines['bottom'].set_visible(False)
+            ax_disc.tick_params(axis='y', labelsize=9, colors='#444')
+            plt.tight_layout()
+            story.append(Image(fig_to_bytes(fig_disc), width=6.5*inch, height=2.4*inch))
+            plt.close(fig_disc)
+        except Exception:
+            pass
+
+        story.append(Spacer(1, 0.06*inch))
+
+        # Discovery insights
+        if insights_disc:
+            lines = [l.strip() for l in insights_disc.split("\n") if l.strip()]
+            items = [l.lstrip("•- ").strip() for l in lines if l.startswith(("•", "-")) or l]
+            for item in items[:2]:
+                story.append(Paragraph(item, bullet_style))
+
+        story.append(PageBreak())
+
+        # ── PÁGINA 3: Recommendations + Summary ──
+        story.append(Paragraph("Recommendations", heading_style))
+        story.append(Spacer(1, 0.08*inch))
+
+        if insights_recs:
+            lines   = [l.strip() for l in insights_recs.split("\n") if l.strip()]
+            rblocks = []
+            current = ""
+            for line in lines:
+                if line and line[0].isdigit() and ". " in line[:4]:
+                    if current:
+                        rblocks.append(current.strip())
+                    current = line
+                else:
+                    current += " " + line
+            if current:
+                rblocks.append(current.strip())
+
+            for i, block in enumerate(rblocks[:3], 1):
+                text = block.lstrip("0123456789. ").strip()
+                if ": " in text[:80]:
+                    _, body = text.split(": ", 1)
+                else:
+                    body = text
+                body = body.lstrip("*").strip()
+                story.append(Paragraph(f"<b>{i}.</b> {body}", bullet_style))
+                story.append(Spacer(1, 0.06*inch))
+
+        story.append(Spacer(1, 0.1*inch))
+
+        story.append(Paragraph("Summary", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        story.append(Paragraph(insights_sum, body_style))
+
+        story.append(Spacer(1, 0.2*inch))
+        story.append(Paragraph(
+            "Report generated by Monkey Baa Theatre AI Reporting System",
+            ParagraphStyle('Footer', parent=styles['Normal'], fontSize=7,
+                           textColor=colors.HexColor('#999999'), alignment=TA_CENTER)))
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    pdf_bytes = generate_hqo_pdf(
+        n, pct_excellent, nps_score, nps_mean, pct_negative,
+        enjoy_data, return_data, age_counts, disc_counts,
+        insights_main, insights_age, insights_disc,
+        insights_recs, insights_sum
+    )
+    st.download_button(
+        "📄 Download Report (.pdf)",
+        data=pdf_bytes,
+        file_name="high_quality_outcomes.pdf",
+        mime="application/pdf"
+    )
