@@ -79,12 +79,17 @@ st.markdown(f"""
   /* Divider */
   hr.div {{ border:none; border-top:1px solid #e0d8d0; margin:6px 0 16px 0; }}
   hr.section-div {{
-    border:none; border-top:2px solid {ORANGE};
-    margin:28px 0 22px 0; opacity:.35;
+    border:none; border-top:1px solid #e0d8d0;
+    margin:28px 0 22px 0;
   }}
 
   /* Placeholder */
   .ph {{ color:#bbb; font-style:italic; font-size:13px; }}
+
+  /* Override Streamlit warning/info text to black */
+  [data-testid="stAlert"] {{ color: #111 !important; }}
+  [data-testid="stAlert"] p {{ color: #111 !important; }}
+  [data-testid="stAlert"] a {{ color: #111 !important; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -211,7 +216,7 @@ def ph(msg):
 # These match the exact keys each report stores its summary under
 REPORT_KEYS = {
     "aar": "ar_summary",        # 2_Access_and_Audience_Reach.py
-    "af":  "af_summary",        # 3_Audience_Feedback.py
+    "af":  "fb_summary",         # 3_Audience_Feedback.py
     "esi": "esi_exec_summary",  # 5_Emotional_and_Social_Impact.py
     "aci": "aci_summary",       # 5_Arts_Cultural_Impact.py
     "hqo": "hqo_summary",       # 6_High_Quality_Outcomes.py
