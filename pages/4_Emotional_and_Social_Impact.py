@@ -426,20 +426,206 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ── Download ──────────────────────────────────────────────
+# ── Download PDF ──────────────────────────────────────────
 if ins_sum:
     st.divider()
-    md = f"""# Monkey Baa — Emotional & Social Impact
-**Happy:** {pct_happy}% | **Excellent:** {pct_excellent}% | **Impact:** {impact_score}/10
 
-## Quality Insights
-{ins_q}
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
 
-## Emotion Insights
-{ins_e}
+    def fig_to_bytes(fig):
+        buf = BytesIO()
+        fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+        buf.seek(0)
+        return buf
 
-## Summary
-{ins_sum}
-"""
-    st.download_button("📄 Download Report (.md)", md,
-                       file_name="emotional_social_impact.md", mime="text/markdown")
+    def generate_esi_pdf(pct_happy, pct_excellent, impact_score, ent_score, n,
+                         quality_sorted, emotion_sorted, EMOTION_EMOJI,
+                         ins_q, ins_e, ins_rec, ins_sum):
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+                                topMargin=0.4*inch, bottomMargin=0.4*inch,
+                                leftMargin=0.6*inch, rightMargin=0.6*inch)
+        story = []
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=22,
+                                     textColor=colors.HexColor('#222222'), spaceAfter=2,
+                                     spaceBefore=0, fontName='Helvetica-Bold')
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], fontSize=14,
+                                        textColor=colors.HexColor('#E8673A'), spaceAfter=8,
+                                        spaceBefore=0, fontName='Helvetica-Bold')
+        heading_style = ParagraphStyle('Heading', parent=styles['Heading3'], fontSize=12,
+                                       textColor=colors.HexColor('#333333'), spaceAfter=6,
+                                       spaceBefore=8, fontName='Helvetica-Bold')
+        body_style = ParagraphStyle('Body', parent=styles['BodyText'], fontSize=9,
+                                    textColor=colors.HexColor('#555555'), spaceAfter=4,
+                                    leading=11, alignment=TA_JUSTIFY)
+        bullet_style = ParagraphStyle('Bullet', parent=styles['BodyText'], fontSize=9,
+                                      textColor=colors.HexColor('#555555'), spaceAfter=3,
+                                      leftIndent=18, leading=11, bulletIndent=8)
+        kpi_style = ParagraphStyle('KPI', parent=styles['Normal'], fontSize=11,
+                                   textColor=colors.white, alignment=TA_CENTER,
+                                   fontName='Helvetica-Bold', leading=14)
+
+        # ── PÁGINA 1: Header + KPIs + Quality Metrics + Quality Insights ──
+        story.append(Paragraph("MONKEY BAA THEATRE", title_style))
+        story.append(Paragraph(
+            "Fostering Emotional Literacy: <font color='#E8673A'>Emotional &amp; Social Impact</font>",
+            subtitle_style))
+        story.append(Spacer(1, 0.08*inch))
+
+        # KPI Cards
+        kpi_data = [[
+            Paragraph(f"<b>Young People Felt Happy</b><br/>{pct_happy}%<br/><font size='8'>Top emotional response · n={n:,}</font>", kpi_style),
+            Paragraph(f"<b>Rated Experience Excellent</b><br/>{pct_excellent}%<br/><font size='8'>Overall satisfaction</font>", kpi_style),
+            Paragraph(f"<b>Emotional Impact Score</b><br/>{impact_score}/10<br/><font size='8'>Entertainment: {ent_score}/10</font>", kpi_style),
+        ]]
+        kpi_table = Table(kpi_data, colWidths=[2*inch, 2*inch, 2*inch])
+        kpi_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#E8673A')),
+            ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 14),
+            ('TOPPADDING',    (0, 0), (-1, -1), 14),
+        ]))
+        story.append(kpi_table)
+        story.append(Spacer(1, 0.14*inch))
+
+        # Section 1 title
+        story.append(Paragraph("Artistic Quality Metrics — Audience Perception", heading_style))
+        story.append(Spacer(1, 0.06*inch))
+
+        # Quality progress bars as a matplotlib chart
+        try:
+            labels = [c for c, _ in quality_sorted]
+            vals   = [v for _, v in quality_sorted]
+            bar_colors = ['#E8673A' if i == 0 else '#F4A57A' if i < 3 else '#F9C9A8'
+                          for i in range(len(vals))]
+
+            fig_q, ax_q = plt.subplots(figsize=(6.5, 2.2))
+            bars = ax_q.barh(labels[::-1], [v/10*100 for v in vals[::-1]],
+                             color=bar_colors[::-1], height=0.55)
+            for bar, val in zip(bars, vals[::-1]):
+                ax_q.text(bar.get_width() + 0.8, bar.get_y() + bar.get_height()/2,
+                          f"{val}", va='center', fontsize=9, color='#333', fontweight='bold')
+            ax_q.set_xlim(0, 110)
+            ax_q.set_xlabel("Score (out of 10)", fontsize=8, color='#555')
+            ax_q.tick_params(axis='y', labelsize=9, colors='#333')
+            ax_q.tick_params(axis='x', labelsize=8, colors='#555')
+            ax_q.set_facecolor('#F5F0EA')
+            fig_q.patch.set_facecolor('white')
+            ax_q.grid(True, axis='x', alpha=0.2)
+            ax_q.spines['top'].set_visible(False)
+            ax_q.spines['right'].set_visible(False)
+            plt.tight_layout()
+            story.append(Image(fig_to_bytes(fig_q), width=6.5*inch, height=2.2*inch))
+            plt.close(fig_q)
+        except:
+            story.append(Paragraph("<i>Quality chart generation failed</i>", body_style))
+
+        story.append(Spacer(1, 0.08*inch))
+
+        # Quality Insights bullets
+        if ins_q:
+            for line in ins_q.split('\n'):
+                if line.strip().startswith(('•', '-')):
+                    story.append(Paragraph(line.strip(), bullet_style))
+
+        story.append(PageBreak())
+
+        # ── PÁGINA 2: Emotion Bar Chart + Emotion Insights ──
+        story.append(Paragraph("Emotional Responses During Performance", heading_style))
+        story.append(Spacer(1, 0.06*inch))
+
+        try:
+            em_labels = [f"{EMOTION_EMOJI.get(e,'')} {e}" for e, _ in emotion_sorted]
+            em_vals   = [v for _, v in emotion_sorted]
+            em_colors = ['#E8673A' if i == 0 else '#F4A57A' if i < 3 else '#F9C9A8'
+                         for i in range(len(em_vals))]
+
+            fig_e, ax_e = plt.subplots(figsize=(6.5, 2.8))
+            bar_e = ax_e.bar(range(len(em_labels)), em_vals, color=em_colors, width=0.6)
+            for bar, val in zip(bar_e, em_vals):
+                ax_e.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
+                          f"{val}%", ha='center', va='bottom', fontsize=8, color='#333')
+            ax_e.set_xticks(range(len(em_labels)))
+            ax_e.set_xticklabels(em_labels, fontsize=8, color='#333')
+            ax_e.set_ylabel("% of Respondents", fontsize=8, color='#555')
+            ax_e.set_facecolor('#F5F0EA')
+            fig_e.patch.set_facecolor('white')
+            ax_e.grid(True, axis='y', alpha=0.2)
+            ax_e.spines['top'].set_visible(False)
+            ax_e.spines['right'].set_visible(False)
+            plt.tight_layout()
+            story.append(Image(fig_to_bytes(fig_e), width=6.5*inch, height=2.8*inch))
+            plt.close(fig_e)
+        except:
+            story.append(Paragraph("<i>Emotion chart generation failed</i>", body_style))
+
+        story.append(Spacer(1, 0.08*inch))
+
+        # Emotion Insights bullets
+        if ins_e:
+            for line in ins_e.split('\n'):
+                if line.strip().startswith(('•', '-')):
+                    story.append(Paragraph(line.strip(), bullet_style))
+
+        story.append(PageBreak())
+
+        # ── PÁGINA 3: Strategic Recommendations ──
+        story.append(Paragraph("Strategic Recommendations", heading_style))
+        story.append(Spacer(1, 0.08*inch))
+
+        if ins_rec:
+            import json as _json, re as _re
+            try:
+                _clean    = _re.sub(r"```(?:json)?", "", ins_rec).strip().rstrip("`").strip()
+                rec_data  = _json.loads(_clean)
+                rec_items = rec_data.get("items", [])
+            except Exception:
+                rec_items = []
+
+            for i, item in enumerate(rec_items[:3], 1):
+                title = item.get("title", "")
+                body  = item.get("body",  "")
+                story.append(Paragraph(f"<b>{i}. {title}</b>", body_style))
+                story.append(Paragraph(body, bullet_style))
+                story.append(Spacer(1, 0.08*inch))
+
+        story.append(Spacer(1, 0.1*inch))
+
+        # ── Summary ──
+        story.append(Paragraph("Summary", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        story.append(Paragraph(ins_sum, body_style))
+
+        story.append(Spacer(1, 0.2*inch))
+        story.append(Paragraph(
+            "Report generated by Monkey Baa Theatre AI Reporting System",
+            ParagraphStyle('Footer', parent=styles['Normal'], fontSize=7,
+                           textColor=colors.HexColor('#999999'), alignment=TA_CENTER)))
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    pdf_bytes = generate_esi_pdf(
+        pct_happy, pct_excellent, impact_score, ent_score, n,
+        quality_sorted, emotion_sorted, EMOTION_EMOJI,
+        ins_q, ins_e, ins_rec, ins_sum
+    )
+    st.download_button(
+        "📄 Download Report (.pdf)",
+        data=pdf_bytes,
+        file_name="emotional_social_impact.pdf",
+        mime="application/pdf"
+    )
