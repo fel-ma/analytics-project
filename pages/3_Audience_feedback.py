@@ -520,7 +520,7 @@ Board-quality conclusion. Purposeful, warm, actionable. No headers. No bullet po
 # ─────────────────────────────────────────────────────────
 # SECTION 1 — Bar chart (topics) + AI insights
 # ─────────────────────────────────────────────────────────
-st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
 c1, c2 = st.columns([5, 5])
 
 with c1:
@@ -578,8 +578,8 @@ st.markdown("</div>", unsafe_allow_html=True)
 # ─────────────────────────────────────────────────────────
 # SECTION 2 — Positive testimonials
 # ─────────────────────────────────────────────────────────
-st.markdown("<div class='card'>", unsafe_allow_html=True)
-st.markdown("<div class='section-title'>⭐ Highlighted Positive Comments</div>",
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'>⭐ Highlighted Positive Comments</div>", 
             unsafe_allow_html=True)
 
 t_cols = st.columns(3)
@@ -595,7 +595,7 @@ st.markdown("</div>", unsafe_allow_html=True)
 # ─────────────────────────────────────────────────────────
 # SECTION 3 — Improvement areas with real quotes
 # ─────────────────────────────────────────────────────────
-st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
 st.markdown("<div class='section-title'>🔧 Key Improvement Opportunities</div>",
             unsafe_allow_html=True)
 
@@ -788,16 +788,151 @@ st.markdown(
 # ─────────────────────────────────────────────────────────
 if ai_summary:
     st.divider()
-    md = f"""# Monkey Baa — Audience Feedback Report
-
-**Total Comments Analysed:** {total:,}
-**Positive:** {len(pos)} ({len(pos)/total*100:.0f}%) | **Neutral:** {len(neu)} ({len(neu)/total*100:.0f}%) | **Suggestions:** {len(neg)} ({len(neg)/total*100:.0f}%)
-
-## Key Insights
-{ai_insights}
-
-## Executive Summary
-{ai_summary}
-"""
-    st.download_button("📄 Download Report (.md)", md,
-                       file_name="audience_feedback.md", mime="text/markdown")
+    
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+    import matplotlib.pyplot as plt
+    
+    def fig_to_bytes(fig):
+        buffer = BytesIO()
+        fig.savefig(buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+        buffer.seek(0)
+        return buffer
+    
+    def generate_feedback_pdf_report(df_survey, total, pos, neu, neg, ai_insights, ai_summary):
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+                               topMargin=0.4*inch, bottomMargin=0.4*inch,
+                               leftMargin=0.6*inch, rightMargin=0.6*inch)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=22,
+                                    textColor=colors.HexColor('#222222'), spaceAfter=2, spaceBefore=0, fontName='Helvetica-Bold')
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], fontSize=14,
+                                       textColor=colors.HexColor('#E8673A'), spaceAfter=8, spaceBefore=0, fontName='Helvetica-Bold')
+        heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading3'], fontSize=12,
+                                      textColor=colors.HexColor('#333333'), spaceAfter=6, spaceBefore=8, fontName='Helvetica-Bold')
+        body_style = ParagraphStyle('CustomBody', parent=styles['BodyText'], fontSize=9,
+                                   textColor=colors.HexColor('#555555'), spaceAfter=4, leading=11, alignment=TA_JUSTIFY)
+        bullet_style = ParagraphStyle('BulletStyle', parent=styles['BodyText'], fontSize=9,
+                                     textColor=colors.HexColor('#555555'), spaceAfter=3, leftIndent=18, leading=11, bulletIndent=8)
+        
+        # PÁGINA 1
+        story.append(Paragraph("MONKEY BAA THEATRE", title_style))
+        story.append(Paragraph("Audience Feedback Report: <font color='#E8673A'>Experience & Insights</font>", subtitle_style))
+        story.append(Spacer(1, 0.08*inch))
+        
+        # KPI Cards
+        pos_pct = (len(pos)/total*100) if total > 0 else 0
+        neu_pct = (len(neu)/total*100) if total > 0 else 0
+        neg_pct = (len(neg)/total*100) if total > 0 else 0
+        
+        kpi_col1 = Paragraph(f"<b>Total Comments</b><br/>{total:,}", 
+                            ParagraphStyle('KPI', parent=styles['Normal'], fontSize=10, 
+                                         textColor=colors.white, alignment=TA_CENTER, fontName='Helvetica-Bold', leading=12))
+        kpi_col2 = Paragraph(f"<b>Positive</b><br/>{len(pos)} ({pos_pct:.0f}%)", 
+                            ParagraphStyle('KPI', parent=styles['Normal'], fontSize=10, 
+                                         textColor=colors.white, alignment=TA_CENTER, fontName='Helvetica-Bold', leading=12))
+        kpi_col3 = Paragraph(f"<b>Suggestions</b><br/>{len(neg)} ({neg_pct:.0f}%)", 
+                            ParagraphStyle('KPI', parent=styles['Normal'], fontSize=10, 
+                                         textColor=colors.white, alignment=TA_CENTER, fontName='Helvetica-Bold', leading=12))
+        
+        kpi_data = [[kpi_col1, kpi_col2, kpi_col3]]
+        kpi_table = Table(kpi_data, colWidths=[1.9*inch, 1.9*inch, 1.9*inch])
+        kpi_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#E8673A')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        story.append(kpi_table)
+        story.append(Spacer(1, 0.12*inch))
+        
+        # Gráfico 1: Sentiment Distribution Pie Chart
+        try:
+            fig1, ax1 = plt.subplots(figsize=(5, 2.2))
+            sentiments = [len(pos), len(neu), len(neg)]
+            labels = ['Positive', 'Neutral', 'Suggestions']
+            colors_pie = ['#4CAF7D', '#F0A500', '#E05252']
+            ax1.pie(sentiments, labels=labels, autopct='%1.0f%%', colors=colors_pie, startangle=90, textprops={'fontsize': 8})
+            ax1.set_title("Sentiment Distribution", fontsize=11, fontweight='bold', color='#333')
+            fig1.patch.set_facecolor('white')
+            plt.tight_layout()
+            img1_buffer = fig_to_bytes(fig1)
+            img1 = Image(img1_buffer, width=5*inch, height=2.2*inch)
+            story.append(img1)
+            plt.close(fig1)
+        except:
+            story.append(Paragraph("<i>Chart generation failed</i>", body_style))
+        
+        story.append(Spacer(1, 0.08*inch))
+        story.append(Paragraph("Sentiment Analysis:", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        
+        # Key Insights
+        story.append(Paragraph(ai_insights if ai_insights else "No insights available", body_style))
+        
+        story.append(PageBreak())
+        
+        # PÁGINA 2: Positive Comments
+        story.append(Paragraph("Highlighted Positive Comments", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        
+        try:
+            pos_comments = df_survey[df_survey['sentiment'] == 'positive']['comment'].dropna().unique()
+            if len(pos_comments) > 0:
+                for i, comment in enumerate(pos_comments[:6], 1):
+                    clean_comment = str(comment)[:250]
+                    story.append(Paragraph(f"<b>{i}. </b>{clean_comment}...", bullet_style))
+            else:
+                story.append(Paragraph("No positive comments available", body_style))
+        except:
+            story.append(Paragraph("Could not load positive comments", body_style))
+        
+        story.append(Spacer(1, 0.12*inch))
+        
+        # Key Improvement Opportunities
+        story.append(Paragraph("Key Improvement Opportunities", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        
+        try:
+            neg_comments = df_survey[df_survey['sentiment'] == 'negative']['comment'].dropna().unique()
+            if len(neg_comments) > 0:
+                for i, comment in enumerate(neg_comments[:6], 1):
+                    clean_comment = str(comment)[:250]
+                    story.append(Paragraph(f"<b>{i}. </b>{clean_comment}...", bullet_style))
+            else:
+                story.append(Paragraph("No improvement suggestions available", body_style))
+        except:
+            story.append(Paragraph("Could not load improvement suggestions", body_style))
+        
+        story.append(PageBreak())
+        
+        # PÁGINA 3: Executive Summary
+        story.append(Paragraph("Executive Summary", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        story.append(Paragraph(ai_summary if ai_summary else "No summary available", body_style))
+        
+        story.append(Spacer(1, 0.2*inch))
+        story.append(Paragraph("Report generated by Monkey Baa Theatre AI Reporting System", 
+                              ParagraphStyle('Footer', parent=styles['Normal'], fontSize=7, 
+                                           textColor=colors.HexColor('#999'), alignment=TA_CENTER)))
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+    
+    pdf_bytes = generate_feedback_pdf_report(df_survey, total, pos, neu, neg, ai_insights, ai_summary)
+    st.download_button(
+        "📄 Download Report (.pdf)",
+        data=pdf_bytes,
+        file_name="audience_feedback.pdf",
+        mime="application/pdf"
+    )
