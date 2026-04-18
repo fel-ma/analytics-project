@@ -881,31 +881,259 @@ st.markdown(
     unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────
-# Download
+# Download PDF
 # ─────────────────────────────────────────────────────────
 if ai_summary:
     st.divider()
-    md_report = f"""# Monkey Baa — Arts & Cultural Impact
 
-**Cultural Learning:** {m['cultural_learning_pct']}% ({m['cultural_learning_n']} of {n}) |
-**Confidence:** {m['confidence_pct']}% ({m['confidence_n']} of {n}) |
-**Australian Stories:** {m['aus_stories_pct']}% ({m['aus_stories_n']} of {n})
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+    import matplotlib.pyplot as plt
+    import re as _re_pdf
+    import json as _json_pdf
 
-## Insight Interpretation
-{ai_interpret}
+    def fig_to_bytes(fig):
+        buf = BytesIO()
+        fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+        buf.seek(0)
+        return buf
 
-## Weakness
-{ai_weak}
+    def generate_aci_pdf(m, n, ai_interpret, ai_sentiment, ai_weak, ai_rec, ai_recdet, ai_summary):
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+                                topMargin=0.4*inch, bottomMargin=0.4*inch,
+                                leftMargin=0.6*inch, rightMargin=0.6*inch)
+        story = []
+        styles = getSampleStyleSheet()
 
-## Recommendation
-{ai_rec}
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=22,
+                                     textColor=colors.HexColor('#222222'), spaceAfter=2,
+                                     spaceBefore=0, fontName='Helvetica-Bold')
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], fontSize=13,
+                                        textColor=colors.HexColor('#E8673A'), spaceAfter=6,
+                                        spaceBefore=0, fontName='Helvetica-Bold')
+        heading_style = ParagraphStyle('Heading', parent=styles['Heading3'], fontSize=11,
+                                       textColor=colors.HexColor('#333333'), spaceAfter=5,
+                                       spaceBefore=8, fontName='Helvetica-Bold')
+        body_style = ParagraphStyle('Body', parent=styles['BodyText'], fontSize=9,
+                                    textColor=colors.HexColor('#555555'), spaceAfter=4,
+                                    leading=12, alignment=TA_JUSTIFY)
+        bullet_style = ParagraphStyle('Bullet', parent=styles['BodyText'], fontSize=9,
+                                      textColor=colors.HexColor('#555555'), spaceAfter=4,
+                                      leftIndent=14, leading=12, bulletIndent=6)
+        kpi_style = ParagraphStyle('KPI', parent=styles['Normal'], fontSize=10,
+                                   textColor=colors.white, alignment=TA_CENTER,
+                                   fontName='Helvetica-Bold', leading=14)
+        cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=8,
+                                    textColor=colors.HexColor('#555555'), leading=11)
 
-## Recommendation Details
-{ai_recdet}
+        # ── PÁGINA 1: Header + KPIs + Insight Interpretation ──
+        story.append(Paragraph("MONKEY BAA THEATRE", title_style))
+        story.append(Paragraph(
+            "Arts &amp; Cultural Impact: <font color='#E8673A'>Cultural Outcomes (Spark and Growth)</font>",
+            subtitle_style))
+        story.append(Spacer(1, 0.08*inch))
 
-## Executive Summary
-{ai_summary}
-"""
-    st.download_button("📄 Download Report (.md)", md_report,
-                       file_name="arts_cultural_impact.md",
-                       mime="text/markdown")
+        # KPI Cards
+        kpi_data = [[
+            Paragraph(f"<b>Cultural Learning</b><br/>{m['cultural_learning_pct']}%<br/>"
+                      f"<font size='7'>{m['cultural_learning_n']} of {n} — Aesthetic Experience ≥7</font>", kpi_style),
+            Paragraph(f"<b>Confidence &amp; Expression</b><br/>{m['confidence_pct']}%<br/>"
+                      f"<font size='7'>{m['confidence_n']} of {n} — Connected to own life</font>", kpi_style),
+            Paragraph(f"<b>Australian Stories Known</b><br/>YES {m['aus_stories_pct']}%<br/>"
+                      f"<font size='7'>{m['aus_stories_n']} of {n} — Recognised the story</font>", kpi_style),
+        ]]
+        kpi_table = Table(kpi_data, colWidths=[2*inch, 2*inch, 2*inch])
+        kpi_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#E8673A')),
+            ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 14),
+            ('TOPPADDING',    (0, 0), (-1, -1), 14),
+        ]))
+        story.append(kpi_table)
+        story.append(Spacer(1, 0.14*inch))
+
+        # Insight Interpretation
+        story.append(Paragraph("Insight Interpretation", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        if ai_interpret:
+            lines = [l.strip() for l in ai_interpret.split("\n") if l.strip()]
+            items = [l for l in lines if l.startswith(("•", "-"))] or lines
+            for b in items:
+                text = b.lstrip("•- ").strip()
+                text = _re_pdf.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+                story.append(Paragraph(text, bullet_style))
+
+        story.append(PageBreak())
+
+        # ── PÁGINA 2: Sentiment Analysis Table + Bar Chart ──
+        story.append(Paragraph("Sentiment Analysis on Cultural Outcomes Impact", heading_style))
+        story.append(Spacer(1, 0.08*inch))
+
+        # Parse sentiment data
+        sent_rows_pdf = [
+            {"category": "Cultural Learning & Awareness", "count": m["cat_cultural_learning"], "pct": round(m["cat_cultural_learning"]/n*100), "desc": ""},
+            {"category": "Confidence & Self-Expression",  "count": m["cat_confidence"],         "pct": round(m["cat_confidence"]/n*100),         "desc": ""},
+            {"category": "Emotional & Social Wellbeing",  "count": m["cat_emotional"],           "pct": round(m["cat_emotional"]/n*100),           "desc": ""},
+            {"category": "Curiosity & Critical Thinking", "count": m["cat_curiosity"],           "pct": round(m["cat_curiosity"]/n*100),           "desc": ""},
+            {"category": "General Positive Engagement",   "count": m["cat_positive"],            "pct": round(m["cat_positive"]/n*100),            "desc": ""},
+        ]
+        if ai_sentiment:
+            try:
+                raw = _re_pdf.sub(r"^```(?:json)?\s*", "", ai_sentiment.strip())
+                raw = _re_pdf.sub(r"\s*```\s*$", "", raw).strip()
+                sd = _json_pdf.loads(raw)
+                desc_map = {r.get("category","").strip(): r.get("description","") for r in sd.get("rows",[])}
+                for row in sent_rows_pdf:
+                    row["desc"] = desc_map.get(row["category"], "")
+            except Exception:
+                pass
+
+        # Sort descending
+        sent_rows_pdf_sorted = sorted(sent_rows_pdf, key=lambda r: r["pct"], reverse=True)
+
+        # Table header
+        tbl_header = [
+            Paragraph("<b>Category</b>", ParagraphStyle('TH', parent=styles['Normal'], fontSize=8, textColor=colors.white, fontName='Helvetica-Bold')),
+            Paragraph("<b>Cultural Impact & Significance</b>", ParagraphStyle('TH', parent=styles['Normal'], fontSize=8, textColor=colors.white, fontName='Helvetica-Bold')),
+            Paragraph("<b>Share</b>", ParagraphStyle('TH', parent=styles['Normal'], fontSize=8, textColor=colors.white, fontName='Helvetica-Bold', alignment=TA_CENTER)),
+        ]
+        tbl_data = [tbl_header]
+        row_colors = []
+        for i, row in enumerate(sent_rows_pdf_sorted):
+            bg = colors.HexColor('#E8F5EE') if i == 0 else (colors.HexColor('#FFF8E1') if i == len(sent_rows_pdf_sorted)-1 else colors.white)
+            row_colors.append(bg)
+            cat_p  = Paragraph(row["category"], cell_style)
+            desc_p = Paragraph(row["desc"] if row["desc"] else "—", cell_style)
+            pct_p  = Paragraph(f"<b>{row['pct']}%</b><br/><font size='7' color='#aaaaaa'>{row['count']} of {n}</font>",
+                               ParagraphStyle('Pct', parent=styles['Normal'], fontSize=8, alignment=TA_CENTER, leading=11))
+            tbl_data.append([cat_p, desc_p, pct_p])
+
+        sent_table = Table(tbl_data, colWidths=[1.5*inch, 4.0*inch, 0.8*inch])
+        ts = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8673A')),
+            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
+            ('ALIGN',      (2, 0), (2, -1), 'CENTER'),
+            ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTSIZE',   (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+            ('TOPPADDING',    (0, 0), (-1, -1), 7),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#eeeeee')),
+        ])
+        for i, bg in enumerate(row_colors):
+            ts.add('BACKGROUND', (0, i+1), (-1, i+1), bg)
+        sent_table.setStyle(ts)
+        story.append(sent_table)
+        story.append(Spacer(1, 0.1*inch))
+
+        # Bar chart — sentiment categories
+        try:
+            cats   = [r["category"].replace(" & ", "\n& ") for r in sent_rows_pdf_sorted]
+            pcts   = [r["pct"] for r in sent_rows_pdf_sorted]
+            bcolors = ['#E8673A' if i == 0 else '#F4A57A' if i < 3 else '#F9C9A8'
+                       for i in range(len(pcts))]
+
+            fig_s, ax_s = plt.subplots(figsize=(6.5, 2.4))
+            bars = ax_s.bar(range(len(cats)), pcts, color=bcolors, width=0.55)
+            for bar, pct in zip(bars, pcts):
+                ax_s.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.8,
+                          f"{pct}%", ha='center', va='bottom', fontsize=8, color='#333')
+            ax_s.set_xticks(range(len(cats)))
+            ax_s.set_xticklabels(cats, fontsize=7, color='#333')
+            ax_s.set_ylabel("% of Respondents", fontsize=8, color='#555')
+            ax_s.set_ylim(0, max(pcts) * 1.2)
+            ax_s.set_facecolor('#F5F0EA')
+            fig_s.patch.set_facecolor('white')
+            ax_s.grid(True, axis='y', alpha=0.2)
+            ax_s.spines['top'].set_visible(False)
+            ax_s.spines['right'].set_visible(False)
+            plt.tight_layout()
+            story.append(Image(fig_to_bytes(fig_s), width=6.5*inch, height=2.4*inch))
+            plt.close(fig_s)
+        except Exception:
+            pass
+
+        story.append(PageBreak())
+
+        # ── PÁGINA 3: Key Findings & Recommendations ──
+        story.append(Paragraph("Key Findings & Recommendations", heading_style))
+        story.append(Spacer(1, 0.08*inch))
+
+        # Two weaknesses
+        try:
+            w = _json_pdf.loads(ai_weak) if ai_weak else {}
+            w1_title  = w.get("weakness_1", {}).get("title",  "Key Weakness 1")
+            w1_points = w.get("weakness_1", {}).get("points", [])
+            w2_title  = w.get("weakness_2", {}).get("title",  "Key Weakness 2")
+            w2_points = w.get("weakness_2", {}).get("points", [])
+        except Exception:
+            w1_title, w1_points = "Key Weakness 1", []
+            w2_title, w2_points = "Key Weakness 2", []
+
+        for wtitle, wpoints in [(w1_title, w1_points), (w2_title, w2_points)]:
+            story.append(Paragraph(f"<b>⚠ {wtitle}</b>", body_style))
+            for pt in wpoints:
+                story.append(Paragraph(pt, bullet_style))
+            story.append(Spacer(1, 0.08*inch))
+
+        story.append(Spacer(1, 0.04*inch))
+
+        # Primary recommendation
+        try:
+            r = _json_pdf.loads(ai_rec) if ai_rec else {}
+            rec_title = r.get("title", "Primary Recommendation")
+            rec_desc  = r.get("description", "")
+        except Exception:
+            rec_title, rec_desc = "Primary Recommendation", ""
+
+        if rec_desc:
+            story.append(Paragraph(f"<b>★ {rec_title}</b>", body_style))
+            story.append(Paragraph(rec_desc, bullet_style))
+            story.append(Spacer(1, 0.1*inch))
+
+        # Recommendation details
+        try:
+            rd       = _json_pdf.loads(ai_recdet) if ai_recdet else {}
+            rd_items = rd.get("items", [])
+        except Exception:
+            rd_items = []
+
+        if rd_items:
+            story.append(Paragraph("<b>Recommendation Details</b>", body_style))
+            story.append(Spacer(1, 0.04*inch))
+            for i, item in enumerate(rd_items, 1):
+                story.append(Paragraph(f"<b>{i} · {item.get('title','')}</b>", body_style))
+                for pt in item.get("points", []):
+                    story.append(Paragraph(pt, bullet_style))
+                story.append(Spacer(1, 0.06*inch))
+
+        story.append(PageBreak())
+
+        # ── PÁGINA 4: Executive Summary ──
+        story.append(Paragraph("Executive Summary", heading_style))
+        story.append(Spacer(1, 0.05*inch))
+        story.append(Paragraph(ai_summary, body_style))
+
+        story.append(Spacer(1, 0.2*inch))
+        story.append(Paragraph(
+            "Report generated by Monkey Baa Theatre AI Reporting System",
+            ParagraphStyle('Footer', parent=styles['Normal'], fontSize=7,
+                           textColor=colors.HexColor('#999999'), alignment=TA_CENTER)))
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    pdf_bytes = generate_aci_pdf(m, n, ai_interpret, ai_sentiment, ai_weak, ai_rec, ai_recdet, ai_summary)
+    st.download_button(
+        "📄 Download Report (.pdf)",
+        data=pdf_bytes,
+        file_name="arts_cultural_impact.pdf",
+        mime="application/pdf"
+    )
