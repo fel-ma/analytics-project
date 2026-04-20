@@ -149,7 +149,7 @@ with h1:
     st.markdown("""<div style='padding:4px 0'>
       <div style='font-size:11px;color:#999;letter-spacing:1px;text-transform:uppercase;'>Monkey Baa Theatre</div>
       <div style='font-size:20px;font-weight:700;color:#333;line-height:1.3;'>
-        Expanding Youth Theatre Access:
+        Access and Audience Reach:
         <span style='color:#E8673A;'> Social Outcomes Impact</span></div>
     </div>""", unsafe_allow_html=True)
 with h2:
@@ -607,7 +607,7 @@ with c4:
     sdf["Audience"] = sdf["Audience"].round(0).astype(int)
     grand_total = sdf["Audience"].sum()
     sdf["% of total"] = sdf["Audience"].apply(
-        lambda v: f"{v/grand_total*100:.1f}% of {grand_total:,}"
+        lambda v: f"{v/grand_total*100:.1f}%"
     )
     rows = "".join(
         f"<tr><td style='text-align:center;'>{r['State']}</td>"
@@ -941,7 +941,7 @@ if insights_summary:
         
         # PÁGINA 1
         story.append(Paragraph("MONKEY BAA THEATRE", title_style))
-        story.append(Paragraph("Expanding Youth Theatre Access: <font color='#E8673A'>Social Outcomes Impact</font>", subtitle_style))
+        story.append(Paragraph("Access and Audience Reach: <font color='#E8673A'>Social Outcomes Impact</font>", subtitle_style))
         story.append(Spacer(1, 0.08*inch))
         
         # KPI Cards con Paragraphs en lugar de texto plano
