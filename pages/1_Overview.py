@@ -107,7 +107,7 @@ with h1:
       </div>
       <div style='font-size:20px;font-weight:700;color:#333;line-height:1.3;'>
         Executive Overview:
-        <span style='color:#E8673A;'> Program Impact Summary 2021–2025</span>
+        <span style='color:#E8673A;'> Program Impact Summary </span>
       </div>
     </div>""", unsafe_allow_html=True)
 with h2:
