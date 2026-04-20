@@ -392,3 +392,230 @@ st.markdown(
 )
 
 st.markdown("<div style='margin-top:24px'></div>", unsafe_allow_html=True)
+
+# ═════════════════════════════════════════════════════════════════════════════
+# DOWNLOAD PDF
+# ═════════════════════════════════════════════════════════════════════════════
+if any([sum_aar, sum_af, sum_esi, sum_aci, sum_hqo]):
+    st.divider()
+
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, HRFlowable
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+
+    def generate_overview_pdf(
+        total_audience, total_events, regional_pct, regional_n,
+        peak_n, peak_year, n_states,
+        pct_excellent, ns, nps_mean, pct_return,
+        pct_happy, impact_score, ent_score, top_quality,
+        top_quality_val, low_quality, low_quality_val, top_age, top_age_n,
+        nps_score, social_pct,
+        sum_aar, sum_af, sum_esi, sum_aci, sum_hqo,
+    ):
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+                                topMargin=0.4*inch, bottomMargin=0.4*inch,
+                                leftMargin=0.6*inch, rightMargin=0.6*inch)
+        story = []
+        styles = getSampleStyleSheet()
+
+        # ── Styles ──────────────────────────────────────────────────────────
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=22,
+                                     textColor=colors.HexColor('#222222'), spaceAfter=2,
+                                     spaceBefore=0, fontName='Helvetica-Bold')
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], fontSize=13,
+                                        textColor=colors.HexColor('#E8673A'), spaceAfter=8,
+                                        spaceBefore=0, fontName='Helvetica-Bold')
+        section_num_style = ParagraphStyle('SecNum', parent=styles['Normal'], fontSize=13,
+                                           textColor=colors.white, alignment=TA_CENTER,
+                                           fontName='Helvetica-Bold')
+        section_title_style = ParagraphStyle('SecTitle', parent=styles['Normal'], fontSize=13,
+                                             textColor=colors.HexColor('#222222'),
+                                             fontName='Helvetica-Bold', spaceAfter=1)
+        section_sub_style = ParagraphStyle('SecSub', parent=styles['Normal'], fontSize=8,
+                                           textColor=colors.HexColor('#999999'),
+                                           spaceAfter=6)
+        kpi_style = ParagraphStyle('KPI', parent=styles['Normal'], fontSize=10,
+                                   textColor=colors.white, alignment=TA_CENTER,
+                                   fontName='Helvetica-Bold', leading=14)
+        label_style = ParagraphStyle('Label', parent=styles['Normal'], fontSize=9,
+                                     textColor=colors.HexColor('#333333'),
+                                     fontName='Helvetica-Bold', spaceAfter=3)
+        body_style = ParagraphStyle('Body', parent=styles['BodyText'], fontSize=9,
+                                    textColor=colors.HexColor('#555555'), spaceAfter=4,
+                                    leading=12, alignment=TA_JUSTIFY)
+        footer_style = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=7,
+                                      textColor=colors.HexColor('#999999'),
+                                      alignment=TA_CENTER)
+
+        PH = "Run this report first to see its summary."
+
+        # ── Helper: section header row ───────────────────────────────────────
+        def section_header_pdf(number, title, subtitle):
+            num_cell = Paragraph(number, section_num_style)
+            num_tbl  = Table([[num_cell]], colWidths=[0.34*inch], rowHeights=[0.34*inch])
+            num_tbl.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (0,0), colors.HexColor('#E8673A')),
+                ('ALIGN',      (0,0), (0,0), 'CENTER'),
+                ('VALIGN',     (0,0), (0,0), 'MIDDLE'),
+                ('ROUNDEDCORNERS', [5]),
+            ]))
+            title_cell = [
+                Paragraph(title,    section_title_style),
+                Paragraph(subtitle, section_sub_style),
+            ]
+            hdr_tbl = Table([[num_tbl, title_cell]], colWidths=[0.5*inch, 6.3*inch])
+            hdr_tbl.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('LEFTPADDING',  (1,0), (1,0), 10),
+                ('BOTTOMPADDING',(0,0),(-1,-1), 0),
+                ('TOPPADDING',   (0,0),(-1,-1), 0),
+            ]))
+            return hdr_tbl
+
+        # ── Helper: KPI row ──────────────────────────────────────────────────
+        def kpi_row_pdf(items):
+            cells = []
+            for label, value, sub in items:
+                cells.append(Paragraph(
+                    f"<b>{label}</b><br/>{value}<br/><font size='7'>{sub}</font>",
+                    kpi_style))
+            tbl = Table([cells], colWidths=[2*inch, 2*inch, 2*inch])
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND',    (0,0), (-1,-1), colors.HexColor('#E8673A')),
+                ('ALIGN',         (0,0), (-1,-1), 'CENTER'),
+                ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 12),
+                ('TOPPADDING',    (0,0), (-1,-1), 12),
+                ('INNERGRID',     (0,0), (-1,-1), 0.5, colors.HexColor('#C4512A')),
+            ]))
+            return tbl
+
+        # ── Helper: summary box ──────────────────────────────────────────────
+        def summary_box_pdf(text):
+            clean = text.replace("<br>", " ").replace("<br/>", " ").replace("&amp;", "&") if text else PH
+            p = Paragraph(clean, body_style)
+            tbl = Table([[p]], colWidths=[6.3*inch])
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND',   (0,0), (0,0), colors.HexColor('#FFFFFF')),
+                ('LEFTPADDING',  (0,0), (0,0), 10),
+                ('RIGHTPADDING', (0,0), (0,0), 10),
+                ('TOPPADDING',   (0,0), (0,0), 10),
+                ('BOTTOMPADDING',(0,0), (0,0), 10),
+                ('LINEBEFORE',   (0,0), (0,0), 3, colors.HexColor('#E8673A')),
+                ('BOX',          (0,0), (0,0), 0.5, colors.HexColor('#e0d8d0')),
+                ('ROUNDEDCORNERS', [4]),
+            ]))
+            return tbl
+
+        # ── HEADER ──────────────────────────────────────────────────────────
+        story.append(Paragraph("MONKEY BAA THEATRE", title_style))
+        story.append(Paragraph(
+            "Executive Overview: <font color='#E8673A'>Program Impact Summary 2021–2025</font>",
+            subtitle_style))
+        story.append(Spacer(1, 0.1*inch))
+
+        # ── SECTION 1 ────────────────────────────────────────────────────────
+        story.append(section_header_pdf("1", "Access & Audience Reach",
+                                        "Geographic reach · Audience scale · Regional equity"))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(kpi_row_pdf([
+            ("Total Young People Reached", f"{total_audience:,}",   f"across {total_events:,} performances"),
+            ("Regional Audience",          f"{regional_pct:.0f}%",  f"{regional_n:,} of {total_audience:,}"),
+            ("Peak Year Audience",         f"{peak_n:,}",           f"in {peak_year} · {n_states} states covered"),
+        ]))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(Paragraph("Summary", label_style))
+        story.append(summary_box_pdf(sum_aar))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e0d8d0'),
+                                spaceAfter=12, spaceBefore=16))
+
+        # ── SECTION 2 ────────────────────────────────────────────────────────
+        story.append(section_header_pdf("2", "Audience Feedback",
+                                        "Satisfaction · NPS · Intent to return"))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(kpi_row_pdf([
+            ("Rated Experience Excellent", f"{pct_excellent}%", f"n = {ns:,} respondents"),
+            ("Net Promoter Score",         f"{nps_mean}/10",    "average score"),
+            ("Intent to Return",           f"{pct_return}%",    "Very likely + Likely"),
+        ]))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(Paragraph("Summary", label_style))
+        story.append(summary_box_pdf(sum_af))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e0d8d0'),
+                                spaceAfter=12, spaceBefore=16))
+
+        # ── SECTION 3 ────────────────────────────────────────────────────────
+        story.append(section_header_pdf("3", "Emotional & Social Impact",
+                                        "Emotional responses · Artistic quality · Social value"))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(kpi_row_pdf([
+            ("Young People Felt Happy",  f"{pct_happy}%",        "Top emotional response"),
+            ("Emotional Impact Score",   f"{impact_score}/10",   f"Entertainment: {ent_score}/10"),
+            ("Top Quality Dimension",    f"{top_quality_val}/10", top_quality),
+        ]))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(Paragraph("Summary", label_style))
+        story.append(summary_box_pdf(sum_esi))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e0d8d0'),
+                                spaceAfter=12, spaceBefore=16))
+
+        # ── SECTION 4 ────────────────────────────────────────────────────────
+        story.append(section_header_pdf("4", "Arts & Cultural Impact",
+                                        "Cultural reach · Age demographics · Artistic depth"))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(kpi_row_pdf([
+            ("Top Artistic Dimension",    f"{top_quality_val}/10", top_quality),
+            ("Lowest Artistic Dimension", f"{low_quality_val}/10", low_quality),
+            ("Primary Age Group",         top_age,                 f"{top_age_n:,} mentions in survey"),
+        ]))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(Paragraph("Summary", label_style))
+        story.append(summary_box_pdf(sum_aci))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e0d8d0'),
+                                spaceAfter=12, spaceBefore=16))
+
+        # ── SECTION 5 ────────────────────────────────────────────────────────
+        story.append(section_header_pdf("5", "High Quality Outcomes",
+                                        "Satisfaction · Engagement · Sponsor value"))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(kpi_row_pdf([
+            ("Rated the Show Excellent", f"{pct_excellent}%",  f"n = {ns:,} respondents"),
+            ("NPS Score",                f"{nps_score}",       f"avg {nps_mean}/10"),
+            ("Social Media Discovery",   f"{social_pct}%",     "primary discovery channel"),
+        ]))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(Paragraph("Summary", label_style))
+        story.append(summary_box_pdf(sum_hqo))
+
+        # ── FOOTER ───────────────────────────────────────────────────────────
+        story.append(Spacer(1, 0.2*inch))
+        story.append(Paragraph(
+            "Report generated by Monkey Baa Theatre AI Reporting System",
+            footer_style))
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    pdf_bytes = generate_overview_pdf(
+        total_audience, total_events, regional_pct, regional_n,
+        peak_n, peak_year, n_states,
+        pct_excellent, ns, nps_mean, pct_return,
+        pct_happy, impact_score, ent_score,
+        top_quality[0], top_quality[1],
+        low_quality[0], low_quality[1],
+        top_age, top_age_n,
+        nps_score, social_pct,
+        sum_aar, sum_af, sum_esi, sum_aci, sum_hqo,
+    )
+    st.download_button(
+        "📄 Download Report (.pdf)",
+        data=pdf_bytes,
+        file_name="overview_impact_summary.pdf",
+        mime="application/pdf"
+    )
