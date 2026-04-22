@@ -22,6 +22,12 @@ GRAY_TEXT   = "#555555"
 
 apply_styles()
 
+st.markdown("""<style>
+  [data-testid="stAlert"] { color: #111 !important; }
+  [data-testid="stAlert"] p { color: #111 !important; }
+  [data-testid="stAlert"] a { color: #111 !important; }
+</style>""", unsafe_allow_html=True)
+
 # ─────────────────────────────────────────────────────────
 # Sidebar Title
 # ─────────────────────────────────────────────────────────
