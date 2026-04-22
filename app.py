@@ -916,13 +916,12 @@ with col_left:
     st.markdown("<div class='section-heading'>Available Reports</div>", unsafe_allow_html=True)
 
     reports = [
-        ("1", "Executive Overview",       "Full program summary for leadership and board — all key metrics in one view."),
-        ("2", "Access & Audience Reach",  "Total audience, geographic reach, Metro vs Regional vs Remote breakdown."),
-        ("3", "Audience Feedback",        "Comment sentiment analysis, improvement areas, and audience voice."),
-        ("4", "Emotional & Social Impact","Community outcomes, equity of experience, and social value of the program."),
-        ("5", "Arts & Cultural Impact",   "Cultural outcomes from the survey — identity, curiosity, and story recognition."),
-        ("6", "High Quality Outcomes",    "Year-on-year performance quality, event trends, and output benchmarks."),
-        ("7", "Impact Report — Sponsors", "ROI narrative and outcomes tailored for funders and philanthropic partners."),
+        ("1", "Access & Audience Reach",   "Total audience, geographic reach, Metro vs Regional vs Remote breakdown."),
+        ("2", "Audience Feedback",         "Comment sentiment analysis, improvement areas, and audience voice."),
+        ("3", "Emotional & Social Impact", "Community outcomes, equity of experience, and social value of the program."),
+        ("4", "Arts & Cultural Impact",    "Cultural outcomes from the survey — identity, curiosity, and story recognition."),
+        ("5", "High Quality Outcomes",     "Year-on-year performance quality, event trends, and output benchmarks."),
+        ("6", "Executive Overview",        "Full program summary for leadership and board — all key metrics in one view."),
     ]
 
     for num, title, desc in reports:
