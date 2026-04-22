@@ -133,6 +133,11 @@ st.markdown(f"""
   }}
   [data-testid="stSidebar"] {{ background-color: #1F4A4E !important; }}
   [data-testid="stHeader"] {{ display: none !important; }}
+
+  /* Override Streamlit warning/info text to black */
+  [data-testid="stAlert"] {{ color: #111 !important; }}
+  [data-testid="stAlert"] p {{ color: #111 !important; }}
+  [data-testid="stAlert"] a {{ color: #111 !important; }}
 </style>
 """, unsafe_allow_html=True)
 

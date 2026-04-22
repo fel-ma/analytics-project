@@ -107,10 +107,14 @@ st.markdown(f"""
     padding:16px 20px; color:{GRAY_TEXT};
     font-size:13px; line-height:1.7;
   }}
- 
-  hr.div {{ border:none; border-top:1px solid #e0d8d0; margin:6px 0 12px 0; }}
+   hr.div {{ border:none; border-top:1px solid #e0d8d0; margin:6px 0 12px 0; }}
   [data-testid="stSidebar"] {{ background-color: #1F4A4E !important; }}
   [data-testid="stHeader"] {{ display: none !important; }}
+
+  /* Override Streamlit warning/info text to black */
+  [data-testid="stAlert"] {{ color: #111 !important; }}
+  [data-testid="stAlert"] p {{ color: #111 !important; }}
+  [data-testid="stAlert"] a {{ color: #111 !important; }}
 </style>
 """, unsafe_allow_html=True)
  

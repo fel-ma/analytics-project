@@ -61,10 +61,15 @@ st.markdown(f"""
                    flex-shrink:0;font-weight:600; }}
 
   /* Recommendation cards */
-  .rec-card {{ background:{WHITE};border-radius:10px;padding:14px 18px;
+    .rec-card {{ background:{WHITE};border-radius:10px;padding:14px 18px;
                border-left:4px solid {ORANGE};margin-bottom:6px; }}
   .rec-card-title {{ font-size:13px;font-weight:700;color:{ORANGE_DARK};margin-bottom:5px; }}
   .rec-card p {{ margin:0;color:#111;font-size:12.5px;line-height:1.65; }}
+
+  /* Override Streamlit warning/info text to black */
+  [data-testid="stAlert"] {{ color: #111 !important; }}
+  [data-testid="stAlert"] p {{ color: #111 !important; }}
+  [data-testid="stAlert"] a {{ color: #111 !important; }}
 </style>
 """, unsafe_allow_html=True)
 
