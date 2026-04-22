@@ -88,7 +88,7 @@ with st.sidebar:
 
     # ── Generate All Reports ──────────────────────────────
     st.divider()
-    st.markdown("#### ⚡ Generate All Reports")
+    st.markdown("####  Generate All Reports")
 
     _data_ready = ("df_audience" in st.session_state and "df_survey" in st.session_state)
     _api_ready  = bool(st.session_state.get("api_key", ""))
