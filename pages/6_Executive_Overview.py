@@ -22,6 +22,7 @@ TEAL_DARK   = "#1F4A4E"
 # ── CSS — exact copy of page 2 pattern ───────────────────────────────────────
 st.markdown(f"""
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&display=swap');
   .stApp {{ background-color: {BEIGE}; }}
   [data-testid="stSidebar"] {{ background-color: {TEAL_DARK} !important; }}
   [data-testid="stSidebar"] * {{ color: #ffffff !important; }}
@@ -111,11 +112,13 @@ with h1:
       </div>
     </div>""", unsafe_allow_html=True)
 with h2:
-    st.markdown("""
-    <div style='text-align:right;padding-top:12px;font-size:22px;
-                font-weight:700;color:#222;font-style:italic;'>
-      monkey baa
-    </div>""", unsafe_allow_html=True)
+    st.markdown("""<div style='text-align:right;padding-top:8px;font-size:24px;
+                    font-weight:400;color:#000000;font-style:normal !important;
+                    font-family:"Playfair Display",Georgia,serif;
+                    letter-spacing:0.5px;white-space:nowrap;'>
+                    <span style='font-style:normal !important;'>monkey baa</span>
+                    </div>""",
+                unsafe_allow_html=True)
 
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 

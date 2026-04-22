@@ -153,8 +153,12 @@ with h1:
         <span style='color:#E8673A;'> Social Outcomes Impact</span></div>
     </div>""", unsafe_allow_html=True)
 with h2:
-    st.markdown("""<div style='text-align:right;padding-top:12px;font-size:22px;
-                    font-weight:700;color:#222;font-style:italic;'>monkey baa</div>""",
+    st.markdown("""<div style='text-align:right;padding-top:8px;font-size:24px;
+                    font-weight:400;color:#000000;font-style:normal !important;
+                    font-family:"Playfair Display",Georgia,serif;
+                    letter-spacing:0.5px;white-space:nowrap;'>
+                    <span style='font-style:normal !important;'>monkey baa</span>
+                    </div>""",
                 unsafe_allow_html=True)
 
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
@@ -633,6 +637,7 @@ with c4:
       <tbody>{rows}</tbody>
     </table>
     <style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&display=swap');
       table tr td {{ border: 1px solid #ddd; padding: 5px 10px; }}
       table tr:nth-child(even) {{ background-color: #fdf6f2; }}
       table tr:hover {{ background-color: #fce8dc; }}
