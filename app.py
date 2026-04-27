@@ -214,29 +214,50 @@ with h2:
 
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
-# ── Top row: Configuration+Generate (left) | Data (right) ─────
-cfg_col, data_col = st.columns([1, 1], gap="large")
+# ── Top row: left=Guide+Reports | right=Data+Generate ─────────
+col_left, col_right = st.columns([5, 4], gap="large")
 
-with cfg_col:
-    st.markdown("<div class='section-label'>Generate Reports</div>", unsafe_allow_html=True)
-    st.markdown("<div class='section-heading'>Generate All Reports</div>", unsafe_allow_html=True)
+with col_left:
+    st.markdown("<div class='section-label'>Getting Started</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-heading'>How to Use</div>", unsafe_allow_html=True)
 
-    _data_ready = ("df_audience" in st.session_state and "df_survey" in st.session_state)
-    _api_ready  = bool(st.secrets.get("OPENAI_API_KEY", ""))
-    _btn_ready  = _data_ready and _api_ready
+    steps = [
+        ("Upload data",       "Use the <b>right panel</b> to upload <b>Audience_final_data.csv</b> and the <b>Survey file</b>."),
+        ("Select a report",   "Use the <b>navigation menu</b> on the left to open any report page."),
+        ("Generate insights", "Click <b>Generate AI Insights</b> inside the report."),
+        ("Review & download", "Download the report as a <b>Markdown</b> or <b>JSON</b> file at the bottom."),
+    ]
 
-    if not _api_ready:
-        st.markdown(f"<div style='font-size:12px;color:#aaa;margin-bottom:8px;'>"
-                    f"⚠️ API key not configured. Contact your administrator.</div>",
-                    unsafe_allow_html=True)
-    elif not _data_ready:
-        st.markdown(f"<div style='font-size:12px;color:#aaa;margin-bottom:8px;'>"
-                    f"⬆ Upload both data files first.</div>", unsafe_allow_html=True)
+    for i, (title, text) in enumerate(steps, 1):
+        st.markdown(f"""
+        <div class='step-row'>
+          <div class='step-num'>{i}</div>
+          <div class='step-text'><b>{title}</b> — {text}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    _run_all = st.button("Generate All Reports", type="primary",
-                         disabled=not _btn_ready, use_container_width=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Navigation</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-heading'>Available Reports</div>", unsafe_allow_html=True)
 
-with data_col:
+    reports = [
+        ("1", "Access & Audience Reach",   "Total audience, geographic reach, Metro vs Regional vs Remote breakdown."),
+        ("2", "Audience Feedback",         "Comment sentiment analysis, improvement areas, and audience voice."),
+        ("3", "Emotional & Social Impact", "Community outcomes, equity of experience, and social value of the program."),
+        ("4", "Arts & Cultural Impact",    "Cultural outcomes from the survey — identity, curiosity, and story recognition."),
+        ("5", "High Quality Outcomes",     "Year-on-year performance quality, event trends, and output benchmarks."),
+        ("6", "Executive Overview",        "Full program summary for leadership and board — all key metrics in one view."),
+    ]
+
+    for num, title, desc in reports:
+        st.markdown(f"""
+        <div class='report-row'>
+          <div class='report-num'>{num}</div>
+          <div><div class='report-title'>{title}</div><div class='report-desc'>{desc}</div></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+with col_right:
     st.markdown("<div class='section-label'>Data</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-heading'>Upload Files</div>", unsafe_allow_html=True)
     uploaded = st.file_uploader("Audience CSV", type=["csv"])
@@ -270,8 +291,38 @@ with data_col:
     elif not ("df_audience" in st.session_state and "df_survey" in st.session_state):
         st.session_state["_files_ready_rerun"] = False
 
+    st.markdown("<hr style='border:none;border-top:1px solid #ede5dc;margin:20px 0 16px 0;'>",
+                unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Generate Reports</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-heading'>Generate All Reports</div>", unsafe_allow_html=True)
+
+    _data_ready = ("df_audience" in st.session_state and "df_survey" in st.session_state)
+    _api_ready  = bool(st.secrets.get("OPENAI_API_KEY", ""))
+    _btn_ready  = _data_ready and _api_ready
+
+    if not _api_ready:
+        st.markdown(f"<div style='font-size:12px;color:#aaa;margin-bottom:8px;'>"
+                    f"⚠️ API key not configured. Contact your administrator.</div>",
+                    unsafe_allow_html=True)
+    elif not _data_ready:
+        st.markdown(f"<div style='font-size:12px;color:#aaa;margin-bottom:8px;'>"
+                    f"⬆ Upload both data files first.</div>", unsafe_allow_html=True)
+
+    _run_all = st.button("Generate All Reports", type="primary",
+                         disabled=not _btn_ready, use_container_width=True)
+
+    st.markdown(f"""
+    <div class='card' style='background-color:#FDF3EE;border-left:4px solid {ORANGE};padding:14px 18px;margin-top:16px;'>
+      <div style='font-size:12px;font-weight:700;color:{ORANGE_DARK};margin-bottom:6px;'>About AI Insights</div>
+      <div style='font-size:12px;color:{GRAY_TEXT};line-height:1.65;'>
+        All insights are generated by GPT-4o using your uploaded data.
+        Numbers are always drawn from the dataset — the model never fabricates figures.
+        Each insight is aligned with Monkey Baa's Theory of Change framework.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 if _run_all:
-        import re as _re
         import pandas as _pd
         from openai import OpenAI as _OAI
 
@@ -1037,58 +1088,3 @@ PERFORMANCE SCORES (avg/10): Entertaining: {round(_df_s['The performance was ent
               </span>
             </div>
             """, unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-col_left, col_right = st.columns([5, 4], gap="large")
-
-with col_left:
-    st.markdown("<div class='section-label'>Navigation</div>", unsafe_allow_html=True)
-    st.markdown("<div class='section-heading'>Available Reports</div>", unsafe_allow_html=True)
-
-    reports = [
-        ("1", "Access & Audience Reach",   "Total audience, geographic reach, Metro vs Regional vs Remote breakdown."),
-        ("2", "Audience Feedback",         "Comment sentiment analysis, improvement areas, and audience voice."),
-        ("3", "Emotional & Social Impact", "Community outcomes, equity of experience, and social value of the program."),
-        ("4", "Arts & Cultural Impact",    "Cultural outcomes from the survey — identity, curiosity, and story recognition."),
-        ("5", "High Quality Outcomes",     "Year-on-year performance quality, event trends, and output benchmarks."),
-        ("6", "Executive Overview",        "Full program summary for leadership and board — all key metrics in one view."),
-    ]
-
-    for num, title, desc in reports:
-        st.markdown(f"""
-        <div class='report-row'>
-          <div class='report-num'>{num}</div>
-          <div><div class='report-title'>{title}</div><div class='report-desc'>{desc}</div></div>
-        </div>
-        """, unsafe_allow_html=True)
-
-with col_right:
-    st.markdown("<div class='section-label'>Getting Started</div>", unsafe_allow_html=True)
-    st.markdown("<div class='section-heading'>How to Use</div>", unsafe_allow_html=True)
-
-    steps = [
-        ("Enter your API key", "Paste your <b>OpenAI API key</b> in the sidebar. It stays only in this session and is never stored."),
-        ("Upload data",        "Use the <b>sidebar</b> to upload <b>Audience_final_data.csv</b> and the <b>Survey file</b>."),
-        ("Select a report",    "Use the <b>navigation menu</b> on the left to open any report page."),
-        ("Generate insights",  "Click <b>Generate AI Insights</b> inside the report."),
-        ("Review & download",  "Download the report as a <b>Markdown</b> or <b>JSON</b> file at the bottom."),
-    ]
-
-    for i, (title, text) in enumerate(steps, 1):
-        st.markdown(f"""
-        <div class='step-row'>
-          <div class='step-num'>{i}</div>
-          <div class='step-text'><b>{title}</b> — {text}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div class='card' style='background-color:#FDF3EE;border-left:4px solid {ORANGE};padding:14px 18px;margin-top:0;'>
-      <div style='font-size:12px;font-weight:700;color:{ORANGE_DARK};margin-bottom:6px;'>About AI Insights</div>
-      <div style='font-size:12px;color:{GRAY_TEXT};line-height:1.65;'>
-        All insights are generated by GPT-4o using your uploaded data.
-        Numbers are always drawn from the dataset — the model never fabricates figures.
-        Each insight is aligned with Monkey Baa's Theory of Change framework.
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
