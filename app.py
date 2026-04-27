@@ -114,29 +114,6 @@ st.markdown(f"""
     border: none !important;
   }}
 
-  /* ── Text input (API Key) ── */
-  [data-testid="stTextInput"] input {{
-    background-color: {WHITE} !important;
-    border: 1.5px solid #D4C9BC !important;
-    border-radius: 8px !important;
-    color: #222 !important;
-    font-size: 13px !important;
-  }}
-  [data-testid="stTextInput"] input:focus {{
-    border-color: {ORANGE} !important;
-    box-shadow: 0 0 0 2px rgba(232,103,58,0.15) !important;
-  }}
-  [data-testid="stTextInput"] label {{
-    color: {GRAY_TEXT} !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-  }}
-  [data-testid="stTextInput"] button {{
-    background: transparent !important;
-    border: none !important;
-    color: {GRAY_TEXT} !important;
-  }}
-
   /* ── Progress bar text ── */
   [data-testid="stProgressBar"] + div,
   [data-testid="stStatusWidget"] span,
@@ -210,6 +187,12 @@ with st.sidebar:
 if "model" not in st.session_state:
     st.session_state["model"] = "gpt-4o"
 
+# ── Load API key from Streamlit Secrets ───────────────────────
+try:
+    st.session_state["api_key"] = st.secrets["OPENAI_API_KEY"]
+except Exception:
+    st.session_state["api_key"] = ""
+
 
 # ── Main page header ───────────────────────────────────────────
 h1, h2 = st.columns([3, 1])
@@ -235,28 +218,17 @@ st.markdown("<hr class='div'>", unsafe_allow_html=True)
 cfg_col, data_col = st.columns([1, 1], gap="large")
 
 with cfg_col:
-    st.markdown("<div class='section-label'>Configuration</div>", unsafe_allow_html=True)
-    st.markdown("<div class='section-heading'>API Key</div>", unsafe_allow_html=True)
-    api_key = st.text_input("OpenAI API Key", type="password", placeholder="sk-...",
-                            label_visibility="collapsed")
-    st.markdown(f"<div style='font-size:11px;color:#aaa;margin-top:-8px;margin-bottom:16px;'>"
-                f"Your key is only used in this session and is never stored.</div>",
-                unsafe_allow_html=True)
-    if api_key:
-        st.session_state["api_key"] = api_key
-    st.session_state["model"] = "gpt-4o"
-
-    st.markdown("<hr style='border:none;border-top:1px solid #ede5dc;margin:8px 0 16px 0;'>",
-                unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Generate Reports</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-heading'>Generate All Reports</div>", unsafe_allow_html=True)
 
     _data_ready = ("df_audience" in st.session_state and "df_survey" in st.session_state)
-    _api_ready  = bool(st.session_state.get("api_key", ""))
+    _api_ready  = bool(st.secrets.get("OPENAI_API_KEY", ""))
     _btn_ready  = _data_ready and _api_ready
 
     if not _api_ready:
         st.markdown(f"<div style='font-size:12px;color:#aaa;margin-bottom:8px;'>"
-                    f"⬆ Enter your API key first.</div>", unsafe_allow_html=True)
+                    f"⚠️ API key not configured. Contact your administrator.</div>",
+                    unsafe_allow_html=True)
     elif not _data_ready:
         st.markdown(f"<div style='font-size:12px;color:#aaa;margin-bottom:8px;'>"
                     f"⬆ Upload both data files first.</div>", unsafe_allow_html=True)
@@ -289,6 +261,14 @@ with data_col:
         st.caption(f"✅ {len(df2):,} survey rows")
     elif "df_survey" in st.session_state:
         st.caption("✅ Survey data loaded")
+
+    # Rerun once both files are loaded so the button enables immediately
+    if ("df_audience" in st.session_state and "df_survey" in st.session_state
+            and not st.session_state.get("_files_ready_rerun", False)):
+        st.session_state["_files_ready_rerun"] = True
+        st.rerun()
+    elif not ("df_audience" in st.session_state and "df_survey" in st.session_state):
+        st.session_state["_files_ready_rerun"] = False
 
 if _run_all:
         import re as _re
