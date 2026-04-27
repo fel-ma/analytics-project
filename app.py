@@ -55,6 +55,104 @@ st.markdown(f"""
   .page-title {{ font-size:26px; font-weight:700; color:#222; line-height:1.2; }}
   hr.div {{ border:none; border-top:1px solid #e0d8d0; margin:6px 0 16px 0; }}
   .stDownloadButton > button {{ width:100%; }}
+
+  /* ── File uploader label (Audience CSV / Survey CSV) ── */
+  [data-testid="stFileUploader"] label {{
+    color: #222 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+  }}
+
+  /* ── Caption text after upload (✅ rows / records) ── */
+  [data-testid="stCaptionContainer"] p,
+  [data-testid="stCaptionContainer"] {{
+    color: {GRAY_TEXT} !important;
+    opacity: 1 !important;
+  }}
+
+  /* ── File uploader: override dark theme ── */
+  [data-testid="stFileUploadDropzone"] {{
+    background-color: {WHITE} !important;
+    border: 2px dashed #D4C9BC !important;
+    border-radius: 10px !important;
+    padding: 16px !important;
+  }}
+  [data-testid="stFileUploadDropzone"]:hover {{
+    border-color: {ORANGE} !important;
+    background-color: #FDF3EE !important;
+  }}
+  [data-testid="stFileUploadDropzone"] * {{
+    color: {GRAY_TEXT} !important;
+  }}
+  [data-testid="stFileUploadDropzone"] small {{
+    color: #aaa !important;
+  }}
+  [data-testid="stFileUploadDropzone"] button {{
+    background-color: {ORANGE} !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 6px 16px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+  }}
+  [data-testid="stFileUploadDropzone"] button:hover {{
+    background-color: {ORANGE_DARK} !important;
+  }}
+  [data-testid="stFileUploaderFile"] {{
+    background-color: #F0EAE2 !important;
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+  }}
+  [data-testid="stFileUploaderFile"] * {{
+    color: {GRAY_TEXT} !important;
+  }}
+  [data-testid="stFileUploaderDeleteBtn"] button {{
+    color: {GRAY_TEXT} !important;
+    background: transparent !important;
+    border: none !important;
+  }}
+
+  /* ── Text input (API Key) ── */
+  [data-testid="stTextInput"] input {{
+    background-color: {WHITE} !important;
+    border: 1.5px solid #D4C9BC !important;
+    border-radius: 8px !important;
+    color: #222 !important;
+    font-size: 13px !important;
+  }}
+  [data-testid="stTextInput"] input:focus {{
+    border-color: {ORANGE} !important;
+    box-shadow: 0 0 0 2px rgba(232,103,58,0.15) !important;
+  }}
+  [data-testid="stTextInput"] label {{
+    color: {GRAY_TEXT} !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }}
+  [data-testid="stTextInput"] button {{
+    background: transparent !important;
+    border: none !important;
+    color: {GRAY_TEXT} !important;
+  }}
+
+  /* ── Generate All Reports button (main area only) ── */
+  [data-testid="stMainBlockContainer"] .stButton > button[kind="primary"] {{
+    background-color: {ORANGE} !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+  }}
+  [data-testid="stMainBlockContainer"] .stButton > button[kind="primary"]:hover {{
+    background-color: {ORANGE_DARK} !important;
+  }}
+  [data-testid="stMainBlockContainer"] .stButton > button:disabled {{
+    background-color: #D4C9BC !important;
+    color: #999 !important;
+  }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -75,34 +173,97 @@ def load_audience_csv(file_bytes: bytes) -> pd.DataFrame:
 with st.sidebar:
     st.markdown("### AI Reporting System")
     st.divider()
+    st.caption("Select a report from the navigation above ↑")
 
-    # ── Configuration ─────────────────────────────────────
-    st.markdown("#### ⚙️ Configuration")
-    api_key = st.text_input("OpenAI API key", type="password", placeholder="sk-...")
-    model   = st.selectbox("Model", ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"])
+# ── Session state bootstrap ────────────────────────────────────
+if "model" not in st.session_state:
+    st.session_state["model"] = "gpt-4o"
 
+
+# ── Main page header ───────────────────────────────────────────
+h1, h2 = st.columns([3, 1])
+with h1:
+    st.markdown("""
+    <div class='page-header'>
+      <div class='page-eyebrow'>Monkey Baa Theatre</div>
+      <div class='page-title'>User Guide</div>
+    </div>
+    """, unsafe_allow_html=True)
+with h2:
+    st.markdown("""<div style='text-align:right;padding-top:8px;font-size:24px;
+                    font-weight:400;color:#000000;font-style:normal !important;
+                    font-family:"Playfair Display",Georgia,serif;
+                    letter-spacing:0.5px;white-space:nowrap;'>
+                    <span style='font-style:normal !important;'>monkey baa</span>
+                    </div>""",
+                unsafe_allow_html=True)
+
+st.markdown("<hr class='div'>", unsafe_allow_html=True)
+
+# ── Top row: Configuration+Generate (left) | Data (right) ─────
+cfg_col, data_col = st.columns([1, 1], gap="large")
+
+with cfg_col:
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Configuration</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-heading'>API Key</div>", unsafe_allow_html=True)
+    api_key = st.text_input("OpenAI API Key", type="password", placeholder="sk-...",
+                            label_visibility="collapsed")
+    st.markdown(f"<div style='font-size:11px;color:#aaa;margin-top:-8px;margin-bottom:16px;'>"
+                f"Your key is only used in this session and is never stored.</div>",
+                unsafe_allow_html=True)
     if api_key:
         st.session_state["api_key"] = api_key
-    if model:
-        st.session_state["model"] = model
+    st.session_state["model"] = "gpt-4o"
 
-    # ── Generate All Reports ──────────────────────────────
-    st.divider()
-    st.markdown("####  Generate All Reports")
+    st.markdown("<hr style='border:none;border-top:1px solid #ede5dc;margin:8px 0 16px 0;'>",
+                unsafe_allow_html=True)
+    st.markdown("<div class='section-heading'>Generate All Reports</div>", unsafe_allow_html=True)
 
     _data_ready = ("df_audience" in st.session_state and "df_survey" in st.session_state)
     _api_ready  = bool(st.session_state.get("api_key", ""))
     _btn_ready  = _data_ready and _api_ready
 
     if not _api_ready:
-        st.caption("⚠️ Enter your API key above first.")
+        st.markdown(f"<div style='font-size:12px;color:#aaa;margin-bottom:8px;'>"
+                    f"⬆ Enter your API key first.</div>", unsafe_allow_html=True)
     elif not _data_ready:
-        st.caption("⚠️ Upload both data files below first.")
+        st.markdown(f"<div style='font-size:12px;color:#aaa;margin-bottom:8px;'>"
+                    f"⬆ Upload both data files first.</div>", unsafe_allow_html=True)
 
     _run_all = st.button("Generate All Reports", type="primary",
                          disabled=not _btn_ready, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    if _run_all:
+with data_col:
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='section-label'>Data</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-heading'>Upload Files</div>", unsafe_allow_html=True)
+    uploaded = st.file_uploader("Audience CSV", type=["csv"])
+    if uploaded:
+        df = load_audience_csv(uploaded.read())
+        st.session_state["df_audience"] = df
+        st.caption(f"✅ {int(df['Audience_n'].sum()):,} audience records")
+    elif "df_audience" in st.session_state:
+        st.caption("✅ Audience data loaded")
+
+    st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+
+    uploaded2 = st.file_uploader("Survey CSV", type=["csv", "xlsx"], key="survey_upload")
+    if uploaded2:
+        raw = uploaded2.read()
+        if uploaded2.name.endswith(".xlsx"):
+            import io as _io; df2 = pd.read_excel(_io.BytesIO(raw))
+        else:
+            import io as _io; df2 = pd.read_csv(_io.BytesIO(raw), encoding="utf-8-sig")
+        df2.columns = df2.columns.str.strip()
+        st.session_state["df_survey"] = df2
+        st.caption(f"✅ {len(df2):,} survey rows")
+    elif "df_survey" in st.session_state:
+        st.caption("✅ Survey data loaded")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+if _run_all:
         import re as _re
         import pandas as _pd
         from openai import OpenAI as _OAI
@@ -863,54 +1024,7 @@ PERFORMANCE SCORES (avg/10): Entertaining: {round(_df_s['The performance was ent
         else:
             st.success("All 5 reports generated! Navigate to any report to view results and download PDF.")
 
-    # ── Data upload — compact ──────────────────────────────
-    st.divider()
-    st.markdown("#### 📂 Data")
-
-    uploaded = st.file_uploader("Audience CSV", type=["csv"])
-    if uploaded:
-        df = load_audience_csv(uploaded.read())
-        st.session_state["df_audience"] = df
-        st.caption(f"✅ {int(df['Audience_n'].sum()):,} audience records")
-    elif "df_audience" in st.session_state:
-        st.caption("✅ Audience data loaded")
-
-    uploaded2 = st.file_uploader("Survey CSV / Excel", type=["csv","xlsx"], key="survey_upload")
-    if uploaded2:
-        raw = uploaded2.read()
-        if uploaded2.name.endswith(".xlsx"):
-            import io as _io; df2 = pd.read_excel(_io.BytesIO(raw))
-        else:
-            import io as _io; df2 = pd.read_csv(_io.BytesIO(raw), encoding="utf-8-sig")
-        df2.columns = df2.columns.str.strip()
-        st.session_state["df_survey"] = df2
-        st.caption(f"✅ {len(df2):,} survey rows")
-    elif "df_survey" in st.session_state:
-        st.caption("✅ Survey data loaded")
-
-    st.divider()
-    st.caption("Select a report from the navigation above ↑")
-
-
-h1, h2 = st.columns([3, 1])
-with h1:
-    st.markdown("""
-    <div class='page-header'>
-      <div class='page-eyebrow'>Monkey Baa Theatre</div>
-      <div class='page-title'>User Guide</div>
-    </div>
-    """, unsafe_allow_html=True)
-with h2:
-    st.markdown("""<div style='text-align:right;padding-top:8px;font-size:24px;
-                    font-weight:400;color:#000000;font-style:normal !important;
-                    font-family:"Playfair Display",Georgia,serif;
-                    letter-spacing:0.5px;white-space:nowrap;'>
-                    <span style='font-style:normal !important;'>monkey baa</span>
-                    </div>""",
-                unsafe_allow_html=True)
-
-st.markdown("<hr class='div'>", unsafe_allow_html=True)
-
+st.markdown("<br>", unsafe_allow_html=True)
 col_left, col_right = st.columns([5, 4], gap="large")
 
 with col_left:
