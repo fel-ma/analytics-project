@@ -146,6 +146,13 @@ st.markdown(f"""
   stProgress > div > div {{
     background-color: {ORANGE} !important;
   }}
+  /* broader catch for Streamlit's internal progress bar */
+  .stProgress > div > div > div > div {{
+    background-color: {ORANGE} !important;
+  }}
+  [data-testid="stProgressBar"] {{
+    background-color: #F0EAE2 !important;
+  }}
 
   /* ── Success message: replace green with orange palette ── */
   [data-testid="stAlert"][kind="success"],
@@ -384,6 +391,16 @@ if _run_all:
             raw = _re.sub(r"^```(?:json)?\s*", "", raw)
             return _re.sub(r"\s*```\s*$", "", raw).strip()
 
+        st.markdown("""
+        <style>
+        .stProgress > div > div > div > div {
+            background-color: #E8673A !important;
+        }
+        [data-testid="stProgressBar"] > div {
+            background-color: #E8673A !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
         _prog = st.progress(0, text="Starting...")
         _errs = []
 
