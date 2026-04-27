@@ -243,10 +243,10 @@ with col_left:
     st.markdown("<div class='section-heading'>How to Use</div>", unsafe_allow_html=True)
 
     steps = [
-        ("Upload data",       "Use the <b>right panel</b> to upload <b>Audience_final_data.csv</b> and the <b>Survey file</b>."),
-        ("Select a report",   "Use the <b>navigation menu</b> on the left to open any report page."),
-        ("Generate insights", "Click <b>Generate AI Insights</b> inside the report."),
-        ("Review & download", "Download the report as a <b>Markdown</b> or <b>JSON</b> file at the bottom."),
+        ("Upload data",        "Upload <b>Audience_final_data.csv</b> and the <b>Survey file</b> using the right panel."),
+        ("Select a report",    "Use the <b>navigation menu</b> on the left to open any report page."),
+        ("Generate reports",   "You have two options: click <b>Generate All Reports</b> to run all reports at once, or open each report page and click <b>Generate AI Insights</b> individually."),
+        ("Review & download",  "Download each report as a <b>PDF</b> file at the bottom of the page."),
     ]
 
     for i, (title, text) in enumerate(steps, 1):
@@ -344,10 +344,11 @@ with col_right:
     """, unsafe_allow_html=True)
 
 if _run_all:
+        import re as _re
         import pandas as _pd
         from openai import OpenAI as _OAI
 
-        _key    = st.session_state["api_key"]
+        _key    = st.secrets["OPENAI_API_KEY"]
         _model  = st.session_state["model"]
         _client = _OAI(api_key=_key)
         _df_a   = st.session_state["df_audience"].copy()
