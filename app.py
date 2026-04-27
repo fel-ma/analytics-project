@@ -126,6 +126,27 @@ st.markdown(f"""
     font-weight: 500 !important;
   }}
 
+  /* ── Progress bar fill: orange ── */
+  [data-testid="stProgressBar"] > div {{
+    background-color: {ORANGE} !important;
+  }}
+  div[role="progressbar"] > div {{
+    background-color: {ORANGE} !important;
+  }}
+  stProgress > div > div {{
+    background-color: {ORANGE} !important;
+  }}
+  /* ── Progress bar fill color → orange ── */
+  [data-testid="stProgressBar"] > div {{
+    background-color: {ORANGE} !important;
+  }}
+  div[role="progressbar"] > div {{
+    background-color: {ORANGE} !important;
+  }}
+  stProgress > div > div {{
+    background-color: {ORANGE} !important;
+  }}
+
   /* ── Success message: replace green with orange palette ── */
   [data-testid="stAlert"][kind="success"],
   div[data-testid="stAlert"] > div[class*="success"] {{
