@@ -137,6 +137,37 @@ st.markdown(f"""
     color: {GRAY_TEXT} !important;
   }}
 
+  /* ── Progress bar text ── */
+  [data-testid="stProgressBar"] + div,
+  [data-testid="stStatusWidget"] span,
+  .stProgress > div > div > div > div {{
+    color: {GRAY_TEXT} !important;
+  }}
+  [data-testid="stProgress"] p {{
+    color: #222 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+  }}
+
+  /* ── Success message: replace green with orange palette ── */
+  [data-testid="stAlert"][kind="success"],
+  div[data-testid="stAlert"] > div[class*="success"] {{
+    background-color: #FDF3EE !important;
+    border-left: 4px solid {ORANGE} !important;
+    color: {GRAY_TEXT} !important;
+    border-radius: 8px !important;
+  }}
+  [data-testid="stAlert"][kind="success"] p,
+  [data-testid="stAlert"][kind="success"] span,
+  div[class*="success"] p,
+  div[class*="success"] span {{
+    color: {GRAY_TEXT} !important;
+  }}
+  [data-testid="stAlert"][kind="success"] svg {{
+    fill: {ORANGE} !important;
+    color: {ORANGE} !important;
+  }}
+
   /* ── Generate All Reports button (main area only) ── */
   [data-testid="stMainBlockContainer"] .stButton > button[kind="primary"] {{
     background-color: {ORANGE} !important;
@@ -1018,7 +1049,14 @@ PERFORMANCE SCORES (avg/10): Entertaining: {round(_df_s['The performance was ent
         if _errs:
             st.error("Some reports had issues:\n" + "\n".join(_errs))
         else:
-            st.success("All 5 reports generated! Navigate to any report to view results and download PDF.")
+            st.markdown(f"""
+            <div style='background-color:#FDF3EE;border-left:4px solid {ORANGE};
+                        border-radius:8px;padding:14px 18px;margin-top:8px;'>
+              <span style='color:{GRAY_TEXT};font-size:14px;'>
+                ✅ All 5 reports generated! Navigate to any report to view results and download PDF.
+              </span>
+            </div>
+            """, unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 col_left, col_right = st.columns([5, 4], gap="large")
