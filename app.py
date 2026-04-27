@@ -204,7 +204,6 @@ st.markdown("<hr class='div'>", unsafe_allow_html=True)
 cfg_col, data_col = st.columns([1, 1], gap="large")
 
 with cfg_col:
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<div class='section-label'>Configuration</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-heading'>API Key</div>", unsafe_allow_html=True)
     api_key = st.text_input("OpenAI API Key", type="password", placeholder="sk-...",
@@ -233,10 +232,8 @@ with cfg_col:
 
     _run_all = st.button("Generate All Reports", type="primary",
                          disabled=not _btn_ready, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 with data_col:
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<div class='section-label'>Data</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-heading'>Upload Files</div>", unsafe_allow_html=True)
     uploaded = st.file_uploader("Audience CSV", type=["csv"])
@@ -261,7 +258,6 @@ with data_col:
         st.caption(f"✅ {len(df2):,} survey rows")
     elif "df_survey" in st.session_state:
         st.caption("✅ Survey data loaded")
-    st.markdown("</div>", unsafe_allow_html=True)
 
 if _run_all:
         import re as _re
@@ -1028,7 +1024,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 col_left, col_right = st.columns([5, 4], gap="large")
 
 with col_left:
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<div class='section-label'>Navigation</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-heading'>Available Reports</div>", unsafe_allow_html=True)
 
@@ -1049,10 +1044,7 @@ with col_left:
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
 with col_right:
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<div class='section-label'>Getting Started</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-heading'>How to Use</div>", unsafe_allow_html=True)
 
@@ -1071,8 +1063,6 @@ with col_right:
           <div class='step-text'><b>{title}</b> — {text}</div>
         </div>
         """, unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown(f"""
     <div class='card' style='background-color:#FDF3EE;border-left:4px solid {ORANGE};padding:14px 18px;margin-top:0;'>
