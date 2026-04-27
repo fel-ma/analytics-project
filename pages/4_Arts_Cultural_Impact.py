@@ -605,7 +605,6 @@ Board-quality conclusion. No headers. No bullet points.""",
 # ─────────────────────────────────────────────────────────
 # SECTION 2 — Insight Interpretation (card)
 # ─────────────────────────────────────────────────────────
-st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown("<div class='section-title'>Insight Interpretation</div>",
             unsafe_allow_html=True)
 if ai_interpret:
@@ -632,7 +631,6 @@ st.markdown("</div>", unsafe_allow_html=True)
 # ─────────────────────────────────────────────────────────
 # SECTION 3 — Sentiment Analysis Table (AI-generated) + Bar Chart
 # ─────────────────────────────────────────────────────────
-st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown("<div class='section-title'>Sentiment Analysis on Cultural Outcomes Impact</div>",
             unsafe_allow_html=True)
 
@@ -741,8 +739,6 @@ if sent_insight:
         f"<div style='margin-top:10px;font-size:12px;color:#777;"
         f"font-style:italic;line-height:1.6;'>{sent_insight}</div>",
         unsafe_allow_html=True)
-
-st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────
