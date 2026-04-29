@@ -1040,20 +1040,54 @@ if insights_summary:
         
         story.append(Spacer(1, 0.12*inch))
         
-        # Gráfico 2: Pie
+        # Gráfico 2: Donut chart — brand palette
         try:
             reg = df.groupby("Regional II")["Audience_n"].sum()
             for cat in ["Metro","Regional","Remote"]:
                 if cat not in reg.index: reg[cat] = 0
             reg = reg[["Metro","Regional","Remote"]]
-            fig2, ax2 = plt.subplots(figsize=(5, 2.2))
-            colors_pie = ['#E8673A', '#4CAF7D', '#C0392B']
-            ax2.pie(reg.values, labels=reg.index, autopct='%1.0f%%', colors=colors_pie, startangle=90)
-            ax2.set_title("Audience by Region Type", fontsize=11, fontweight='bold', color='#333')
+
+            colors_pie = ['#E8673A', '#1F4A4E', '#F2A882']
+            total = reg.sum()
+
+            fig2, ax2 = plt.subplots(figsize=(6, 3), facecolor='white')
+            wedges, texts, autotexts = ax2.pie(
+                reg.values,
+                labels=None,
+                autopct='%1.0f%%',
+                colors=colors_pie,
+                startangle=90,
+                pctdistance=0.78,
+                wedgeprops=dict(width=0.52, edgecolor='white', linewidth=2),
+            )
+            for at in autotexts:
+                at.set_fontsize(10)
+                at.set_fontweight('bold')
+                at.set_color('white')
+
+            # Centre label
+            ax2.text(0, 0, f'{int(total):,}', ha='center', va='center',
+                     fontsize=11, fontweight='bold', color='#333333')
+            ax2.text(0, -0.18, 'total', ha='center', va='center',
+                     fontsize=7.5, color='#888888')
+
+            # Legend
+            legend_labels = [f"{cat}  {int(val):,}  ({val/total*100:.1f}%)"
+                             for cat, val in zip(reg.index, reg.values)]
+            ax2.legend(wedges, legend_labels,
+                      loc='center left', bbox_to_anchor=(0.88, 0, 0.5, 1),
+                      frameon=False, fontsize=8.5,
+                      handlelength=1.2, handleheight=1.2,
+                      labelcolor='#444444')
+
+            ax2.set_title("Audience by Region Type", fontsize=11,
+                         fontweight='bold', color='#333333',
+                         pad=12, loc='left', x=0.02)
+
             fig2.patch.set_facecolor('white')
             plt.tight_layout()
             img2_buffer = fig_to_bytes(fig2)
-            img2 = Image(img2_buffer, width=5*inch, height=2.2*inch)
+            img2 = Image(img2_buffer, width=5.5*inch, height=2.6*inch)
             story.append(img2)
             plt.close(fig2)
         except:
