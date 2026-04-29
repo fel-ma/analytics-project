@@ -146,7 +146,7 @@ def placeholder(msg):
 
 # ── Data from session_state (loaded once in app.py) ──────
 df      = st.session_state.get("df_audience", None)
-api_key = st.session_state.get("api_key", "")
+api_key = st.secrets.get("OPENAI_API_KEY", "")
 model   = st.session_state.get("model", "gpt-4o")
 
 # ── Header ───────────────────────────────────────────────
@@ -170,7 +170,7 @@ with h2:
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
 if df is None:
-    st.warning("⬅️ Upload **Audience_final_data.csv** in the sidebar on the Home page first.")
+    st.warning("⬅️ Upload **Audience_final_data.csv** on the Home page first.")
     st.stop()
 
 # ── KPIs ─────────────────────────────────────────────────
@@ -218,7 +218,7 @@ insights_recdet  = st.session_state.get("ar_recdet",    None)
 
 if run:
     if not api_key:
-        st.error("Enter your OpenAI API key in the sidebar on the Home page.")
+        st.error("API key not configured. Contact your administrator.")
         st.stop()
     with st.spinner("Generating insights…"):
         try:
