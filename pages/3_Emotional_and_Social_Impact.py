@@ -36,6 +36,7 @@ st.markdown(f"""
   [data-testid="stSidebarCollapseButton"] {{ display: none !important; }}
   [data-testid="stHeader"] {{ display: none !important; }}
   [data-testid="stSidebar"] {{ background-color: #1F4A4E !important; }}
+      [data-testid="stSidebar"] * {{ color: #ffffff !important; }}
   [data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,0.2) !important; }}
   .kpi-card {{ background-color:{ORANGE};border-radius:12px;padding:14px 12px;
                text-align:center;color:white; }}

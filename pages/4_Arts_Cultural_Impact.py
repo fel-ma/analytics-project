@@ -133,6 +133,7 @@ st.markdown(f"""
     border-bottom:2px solid {ORANGE}; display:inline-block;
   }}
   [data-testid="stSidebar"] {{ background-color: #1F4A4E !important; }}
+      [data-testid="stSidebar"] * {{ color: #ffffff !important; }}
   [data-testid="stHeader"] {{ display: none !important; }}
 
   /* Override Streamlit warning/info text to black */

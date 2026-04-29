@@ -41,6 +41,7 @@ def apply_styles():
 
       /* Sidebar background */
       [data-testid="stSidebar"] {{ background-color: {TEAL_DARK} !important; }}
+      [data-testid="stSidebar"] * {{ color: #ffffff !important; }}
       [data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,0.2) !important; }}
       [data-testid="stSidebar"] .stButton > button {{
         background-color: rgba(255,255,255,0.15);

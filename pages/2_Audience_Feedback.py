@@ -95,6 +95,7 @@ st.markdown(f"""
   }}
   hr.div {{ border:none;border-top:1px solid #e0d8d0;margin:6px 0 14px 0; }}
   [data-testid="stSidebar"] {{ background-color: #1F4A4E !important; }}
+      [data-testid="stSidebar"] * {{ color: #ffffff !important; }}
   [data-testid="stHeader"] {{ display: none !important; }}
 
   /* Override Streamlit warning/info text to black */
