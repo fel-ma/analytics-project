@@ -146,7 +146,10 @@ def placeholder(msg):
 
 # ── Data from session_state (loaded once in app.py) ──────
 df      = st.session_state.get("df_audience", None)
-api_key = st.secrets.get("OPENAI_API_KEY", "")
+try:
+    api_key = st.secrets.get("OPENAI_API_KEY", "")
+except Exception:
+    api_key = ""
 model   = st.session_state.get("model", "gpt-4o")
 
 # ── Header ───────────────────────────────────────────────
@@ -205,8 +208,19 @@ for col, label, value, sub in kpi_items:
 
 st.markdown("<div style='margin-top:10px'></div>", unsafe_allow_html=True)
 
-# ── AI button ────────────────────────────────────────────
-run              = st.button("🚀 Generate AI Insights", type="primary")
+# ── AI button — hidden once insights are already generated ────
+_already_generated = bool(st.session_state.get("ar_main", None))
+if not _already_generated:
+    run = st.button("🚀 Generar reporte", type="primary")
+else:
+    run = False
+    st.markdown(f"""
+    <div style='display:inline-flex;align-items:center;gap:8px;
+                background:#E8F5F0;border:1px solid #9fe1cb;border-radius:8px;
+                padding:8px 16px;font-size:13px;font-weight:500;color:#0f6e56;
+                margin-bottom:4px;'>
+      ✅ AI Insights already generated
+    </div>""", unsafe_allow_html=True)
 context          = build_context(df)
 insights_main    = st.session_state.get("ar_main",      None)
 insights_states  = st.session_state.get("ar_states",    None)
@@ -600,7 +614,7 @@ with c1:
     st.plotly_chart(fig_line, use_container_width=True, config={"displayModeBar": False})
 with c2:
     st.markdown(bullets_html(insights_main) if insights_main
-                else placeholder("Click <b>Generate AI Insights</b> to load analysis."),
+                else placeholder("Haz clic en <b>Generar reporte</b> para cargar el análisis."),
                 unsafe_allow_html=True)
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
@@ -609,7 +623,7 @@ st.markdown("<hr class='div'>", unsafe_allow_html=True)
 c3, c4 = st.columns([5, 5])
 with c3:
     st.markdown(bullets_html(insights_states) if insights_states
-                else placeholder("Insights will appear here after generation."),
+                else placeholder("Los insights aparecerán aquí después de generar."),
                 unsafe_allow_html=True)
 with c4:
     sdf = df.groupby("State")["Audience_n"].sum().sort_values(ascending=False).reset_index()
@@ -700,7 +714,7 @@ with c5:
     st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
 with c6:
     st.markdown(bullets_html(insights_region) if insights_region
-                else placeholder("Geographic insights will appear after generation."),
+                else placeholder("Los insights geográficos aparecerán después de generar."),
                 unsafe_allow_html=True)
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
@@ -780,7 +794,7 @@ st.markdown("<div class='rec-section-title'>🔍 Key Findings & Recommendations<
 if not insights_weak and not insights_rec and not insights_recdet:
     st.markdown(
         "<div style='color:#bbb;font-style:italic;font-size:13px;padding:12px 0;'>"
-        "Click <b>Generate AI Insights</b> above to load findings and recommendations.</div>",
+        "Haz clic en <b>Generar reporte</b> arriba para cargar hallazgos y recomendaciones.</div>",
         unsafe_allow_html=True)
 else:
     # ── Parse Weaknesses ─────────────────────────────────
@@ -907,7 +921,7 @@ st.markdown("<hr class='div'>", unsafe_allow_html=True)
 st.markdown(
     f"<div class='summary-box'>{insights_summary}</div>" if insights_summary
     else "<div class='summary-box' style='color:#bbb;font-style:italic;'>"
-         "Click <b>Generate AI Insights</b> to generate an executive summary.</div>",
+         "Haz clic en <b>Generar reporte</b> para generar el resumen ejecutivo.</div>",
     unsafe_allow_html=True)
 
 # ── Download ─────────────────────────────────────────────
@@ -1179,7 +1193,7 @@ if insights_summary:
                                         insights_main, insights_states, insights_region,
                                         insights_summary, insights_weak, insights_rec, insights_recdet)
     st.download_button(
-        "📄 Download Report (.pdf)",
+        "📄 Download PDF Report",
         data=pdf_bytes,
         file_name="access_audience_reach.pdf",
         mime="application/pdf"
