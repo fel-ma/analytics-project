@@ -273,6 +273,18 @@ if run:
                 f"Lowest year: {min_year} ({min_yr_n:,})"
             )
 
+            # ── Forecast values for prompt ───────────────────────
+            import numpy as _np
+            _x = df.groupby("Year")["Audience_n"].sum().reset_index()["Year"].astype(int).values
+            _y = df.groupby("Year")["Audience_n"].sum().reset_index()["Audience_n"].values
+            _coeffs = _np.polyfit(_x, _y, 1)
+            _poly   = _np.poly1d(_coeffs)
+            _forecast_year = int(_x.max()) + 1
+            _forecast_val  = max(0, int(_poly(_forecast_year)))
+            _std_err = _np.std(_y - _poly(_x))
+            _upper   = int(_forecast_val + 1.5 * _std_err)
+            _lower   = max(0, int(_forecast_val - 1.5 * _std_err))
+
             # ── Prompt 1: Line chart ─────────────────────────────
             insights_main = call_ai(api_key, model,
                 f"""You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
@@ -285,6 +297,7 @@ Focus EXCLUSIVELY on temporal patterns:
 - peak years
 - declines or stagnation
 - what the trend suggests about continuity and scale of access
+- a forward-looking insight based on the 2026 linear regression forecast
 
 Important writing principles:
 - Use ONLY the data provided
@@ -295,7 +308,7 @@ Important writing principles:
 - Support internal decision-making by identifying meaningful patterns, risks, or opportunities
 - Use professional, concise Australian English
 
-Return exactly 4 bullet points.
+Return exactly 5 bullet points.
 Each bullet must:
 - start with •
 - contain exactly 2 sentences
@@ -308,6 +321,7 @@ Required structure:
 2. Identify the peak year using exact numbers and explain what that peak indicates about scale of reach, without guessing causes
 3. Identify any decline, stagnation, or recovery using exact years and values, and explain what this means for continuity of access
 4. Connect the trend to the Theory of Change by assessing whether audience reach appears to be expanding, fluctuating, or constrained over time
+5. Interpret the 2026 linear regression forecast of {_forecast_val:,} young people (range: {_lower:,}–{_upper:,}). Briefly explain that this projection was calculated using a linear regression model fitted to the historical audience data, and describe what it suggests about future access trajectory aligned with Monkey Baa's Theory of Change. Keep the methodology explanation to one short sentence.
 
 Style requirements:
 - Be analytical, clear, and easy to understand
@@ -316,7 +330,7 @@ Style requirements:
 - Do NOT use markdown beyond the bullet symbol
 
 Number rules:
-- Use ONLY numbers that appear in the data
+- Use ONLY numbers that appear in the data or the forecast values provided
 - Every percentage must include its base in the format: X% (N of {total:,})
 - If a percentage cannot be calculated directly from the provided data, do not create one
 - If a required value is missing, write "data not available"
@@ -554,12 +568,28 @@ Professional, warm tone. No headers. No bullet points.""",
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 c1, c2 = st.columns([4, 6])
 with c1:
+    import numpy as np
     yearly = df.groupby("Year")["Audience_n"].sum().reset_index()
     yearly["Year"] = yearly["Year"].astype(int)
 
+    # ── Regression forecast ────────────────────────────────
+    x = yearly["Year"].values
+    y = yearly["Audience_n"].values
+    coeffs = np.polyfit(x, y, 1)
+    poly   = np.poly1d(coeffs)
+
+    forecast_year = int(x.max()) + 1
+    forecast_val  = max(0, poly(forecast_year))
+
+    # Residual std for uncertainty band
+    residuals = y - poly(x)
+    std_err   = np.std(residuals)
+    upper     = forecast_val + 1.5 * std_err
+    lower     = max(0, forecast_val - 1.5 * std_err)
+
     fig_line = go.Figure()
 
-    # Shaded area under line
+    # Shaded area under historical line
     fig_line.add_trace(go.Scatter(
         x=yearly["Year"], y=yearly["Audience_n"],
         mode="none", fill="tozeroy",
@@ -567,7 +597,7 @@ with c1:
         hoverinfo="skip", showlegend=False,
     ))
 
-    # Main line + markers
+    # Main historical line + markers
     fig_line.add_trace(go.Scatter(
         x=yearly["Year"], y=yearly["Audience_n"],
         mode="lines+markers+text",
@@ -580,9 +610,40 @@ with c1:
         showlegend=False,
     ))
 
+    # Uncertainty band (shaded area)
+    fig_line.add_trace(go.Scatter(
+        x=[x.max(), forecast_year, forecast_year, x.max()],
+        y=[y[-1], upper, lower, y[-1]],
+        fill="toself",
+        fillcolor="rgba(232,103,58,0.10)",
+        line=dict(width=0),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+
+    # Forecast dashed line
+    fig_line.add_trace(go.Scatter(
+        x=[x.max(), forecast_year],
+        y=[y[-1], forecast_val],
+        mode="lines+markers+text",
+        line=dict(color=ORANGE, width=2.2, dash="dot"),
+        marker=dict(size=9, color=ORANGE, symbol="diamond",
+                    line=dict(color="white", width=2)),
+        text=["", f"{int(forecast_val):,}"],
+        textposition="top center",
+        textfont=dict(size=10, color=ORANGE),
+        hovertemplate=f"<b>{forecast_year} (forecast)</b><br>"
+                      f"Projected: <b>{int(forecast_val):,}</b><br>"
+                      f"Range: {int(lower):,} – {int(upper):,}<extra></extra>",
+        showlegend=False,
+    ))
+
+    all_years  = yearly["Year"].tolist() + [forecast_year]
+    y_max      = max(yearly["Audience_n"].max(), upper) * 1.3
+
     fig_line.update_layout(
         title=dict(
-            text="Total Audience Reached",
+            text="Total Audience Reached  ◆ 2026 forecast",
             font=dict(size=13, color="#333", family="Arial", weight="normal"),
             x=0.5, xanchor="center",
         ),
@@ -592,8 +653,8 @@ with c1:
         plot_bgcolor=WHITE,
         xaxis=dict(
             tickmode="array",
-            tickvals=yearly["Year"].tolist(),
-            ticktext=[str(y) for y in yearly["Year"].tolist()],
+            tickvals=all_years,
+            ticktext=[str(y) for y in all_years],
             tickfont=dict(size=11, color="#333", family="Arial"),
             linecolor="#ccc", linewidth=1.5,
             showgrid=False, zeroline=False,
@@ -607,7 +668,7 @@ with c1:
             linecolor="#ccc", linewidth=1,
             title=None,
             rangemode="tozero",
-            range=[0, yearly["Audience_n"].max() * 1.25],
+            range=[0, y_max],
         ),
         hoverlabel=dict(bgcolor=ORANGE, font_color="white", font_size=12, bordercolor=ORANGE),
     )

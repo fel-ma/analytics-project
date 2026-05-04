@@ -507,13 +507,24 @@ Every percentage must include its base in the format: X% (N of {_total:,}). No h
 
             _prog.progress(18, text="Report 2: geographic insights...")
             _ar_region = _ai(f"""You are an equity analyst for Monkey Baa Theatre, an Australian children's theatre company.
-Monkey Baa's Theory of Change states: "There is greater equity in cultural access across Australia."
-Return exactly 4 bullet points (starting with •), 2 sentences each, 30-50 words total:
-1. Metro vs Regional vs Remote split — equity of access
-2. Which region most aligns with Theory of Change mission
-3. Most underserved geographic segment with exact numbers
-4. One specific recommendation to improve geographic equity
-Every % must include base: X% (N of {_total:,} young people). No headers. No markdown. Start each point with •.""", _ctx2, 800)
+Monkey Baa's Theory of Change states: "There is greater equity in cultural access across Australia.
+Our focus on removing barriers ensures young people from communities experiencing entrenched
+disadvantage gain equal opportunities to engage in the arts."
+
+Analyse the geographic distribution in the data and return exactly 4 bullet points (starting with •).
+Each bullet must be 2 sentences, 30-50 words total:
+1. Describe the Metro vs Regional vs Remote split — what it means for equity of access
+2. Identify which region type most aligns with the Theory of Change mission and why
+3. Name the most underserved geographic segment with exact numbers from the data
+4. Give one specific recommendation to improve geographic equity, grounded in the data
+
+EXAMPLE of a good bullet (use this style):
+• Remote communities received only 3,200 young people (0.9% of {_total:,}), the smallest share of any region type. This critical gap directly undermines the Theory of Change goal of equitable access for young people facing geographic disadvantage.
+
+STRICT RULES:
+- Every % must include base: write "X% (N of {_total:,} young people)".
+- Before writing each bullet, verify the number exists in the dataset — if not, write "data not available".
+- No headers. No markdown. Start each point with •.""", _ctx2, 800)
 
             _prog.progress(22, text="Report 2: state insights...")
             _ar_states = _ai(f"""You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
@@ -957,13 +968,36 @@ GAP: Only {round(_m5['cult_aware_n']/_ns5*100)}% ({_m5['cult_aware_n']} of {_ns5
 
             _prog.progress(83, text="Report 5: insight interpretation...")
             _aci_interpret = _ai(f"""You are a cultural impact analyst for Monkey Baa Theatre, Australia.
-Monkey Baa's Theory of Change — Cultural Outcomes (Spark): "Young people see themselves in stories and feel validated." "Young people develop curiosity and engagement with theatre."
-Cultural Outcomes (Growth): "Young people develop a growing appreciation for theatre and the arts." "Young people build increased cultural literacy and openness."
-You are writing the INSIGHT INTERPRETATION section — interpret WHAT THE KPIs MEAN culturally. Do NOT repeat numbers mechanically — explain the significance.
-Key data points: {_m5['cultural_learning_pct']}% ({_m5['cultural_learning_n']} of {_ns5}) rated AE>=7 | {_m5['confidence_pct']}% ({_m5['confidence_n']} of {_ns5}) made connections to own life | {_m5['aus_stories_pct']}% ({_m5['aus_stories_n']} of {_ns5}) already knew the story | {round(_m5['happy_n']/_ns5*100)}% ({_m5['happy_n']} of {_ns5}) felt Happy | {round(_m5['curious_n']/_ns5*100)}% ({_m5['curious_n']} of {_ns5}) felt Curious | Only {round(_m5['cult_aware_n']/_ns5*100)}% ({_m5['cult_aware_n']} of {_ns5}) became more culturally aware
-Return exactly 5 bullet points (starting with •). Each bullet: bold label format **Label:** then insight text, 1-2 sentences, reference a Theory of Change outcome explicitly.
-Structure: • **Strong Cultural Reach:** • **Identity & Belonging:** • **Australian Story Recognition:** • **Emotional Engagement:** • **Cultural Gap:**
-Every % must show base — write "X% (N of {_ns5})". Start with •.""", _ctx5, 800)
+Monkey Baa's Theory of Change — Cultural Outcomes (Spark):
+"Young people see themselves in stories and feel validated."
+"Young people develop curiosity and engagement with theatre."
+Cultural Outcomes (Growth):
+"Young people develop a growing appreciation for theatre and the arts."
+"Young people build increased cultural literacy and openness."
+
+You are writing the INSIGHT INTERPRETATION section — interpret WHAT THE KPIs MEAN
+culturally. Do NOT repeat numbers mechanically — explain the significance.
+
+Key data points to interpret:
+- {_m5['cultural_learning_pct']}% ({_m5['cultural_learning_n']} of {_ns5}) rated Aesthetic Experience ≥7
+- {_m5['confidence_pct']}% ({_m5['confidence_n']} of {_ns5}) made connections to their own life
+- {_m5['aus_stories_pct']}% ({_m5['aus_stories_n']} of {_ns5}) already knew the Australian story
+- {round(_m5['happy_n']/_ns5*100)}% ({_m5['happy_n']} of {_ns5}) felt Happy | {round(_m5['curious_n']/_ns5*100)}% ({_m5['curious_n']} of {_ns5}) felt Curious
+- Only {round(_m5['cult_aware_n']/_ns5*100)}% ({_m5['cult_aware_n']} of {_ns5}) became more aware of different cultures/viewpoints
+
+Return exactly 5 bullet points (starting with •). Each bullet must:
+- Start with a bold label in this format: **Label:** then the insight text
+- Be 1-2 sentences that explain cultural significance, not just restate numbers
+- Reference a Theory of Change outcome explicitly
+
+Structure:
+• **Strong Cultural Reach:** [interpret aesthetic experience score culturally]
+• **Identity & Belonging:** [interpret connections to own life + belonging score]
+• **Australian Story Recognition:** [interpret prior knowledge culturally]
+• **Emotional Engagement:** [interpret Happy + Curious emotions as cultural outcomes]
+• **Cultural Gap:** [identify what is NOT yet being achieved — use the 5% stat]
+
+RULE: Every % must show base — write "X% (N of {_ns5})". Start with •.""", _ctx5, 800)
 
             _prog.progress(86, text="Report 5: sentiment table...")
             _aci_sentiment = _aij(f"""You are a cultural impact analyst for Monkey Baa Theatre, Australia.
@@ -1010,9 +1044,18 @@ Every % must include the base number.""", _ctx5, 1200)
 
             _prog.progress(90, text="Report 5: recommendation...")
             _aci_rec = _aij(f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
-Theory of Change cultural strategy: "We create theatre experiences that support emotional growth. We develop and present original Australian theatre that reflects the diversity of young audiences."
-Write ONE primary recommendation. Return ONLY this JSON:
-{{"title":"Recommendation title (5-8 words)","description":"3-4 sentences: (1) data gap (X of {_ns5}), (2) Theory of Change link, (3) concrete action, (4) expected cultural outcome."}}""", _ctx5, 1200)
+Theory of Change cultural strategy: "We create theatre experiences that support emotional growth.
+We develop and present original Australian theatre that reflects the diversity of young audiences.
+We ensure our stories reflect a broad range of young people's lived experiences."
+
+Based on the cultural impact data gaps, write ONE primary strategic recommendation.
+
+Return ONLY this JSON, no markdown, no preamble:
+{{
+  "title": "Recommendation title (5-8 words, action-oriented)",
+  "description": "3-4 sentences: (1) name the specific data gap with numbers (X of {_ns5}), (2) link to Theory of Change cultural strategy, (3) propose concrete action, (4) state expected cultural outcome for young people."
+}}
+Every % must include the base number.""", _ctx5, 1200)
 
             _aci_recdet = _aij(f"""You are a strategic analyst for Monkey Baa Theatre, Australia.
 Theory of Change cultural activities:
@@ -1024,20 +1067,53 @@ Theory of Change cultural activities:
 Provide exactly 3 detailed actionable recommendations addressing cultural impact gaps.
 
 Return ONLY this JSON, no markdown, no preamble:
-{{"items":[{{"title":"Embed Cultural Reflection Moments","points":["Specific action (baseline: {round(_m5['cult_aware_n']/_ns5*100)}% ({_m5['cult_aware_n']} of {_ns5}) became culturally aware)","How guided prompts make cultural learning intentional"]}},{{"title":"Reinforce Through Creative Expression","points":["Activities linked to gap ({_m5['confidence_pct']}% of {_ns5} made life connections)","How this strengthens confidence and makes cultural outcomes visible"]}},{{"title":"Strengthen Australian Story Representation","points":["Build on {_m5['aus_stories_pct']}% ({_m5['aus_stories_n']} of {_ns5}) prior story recognition","How this advances the Theory of Change goal of enriched Australian storytelling"]}}]}}
-Rewrite points in your own words — use baseline numbers but make language strategic.""", _ctx5, 1200)
+{{
+  "items": [
+    {{
+      "title": "Embed Cultural Reflection Moments",
+      "points": [
+        "Specific action with current baseline (only {round(_m5['cult_aware_n']/_ns5*100)}% ({_m5['cult_aware_n']} of {_ns5}) became culturally aware)",
+        "How guided prompts during/after performances make cultural learning intentional"
+      ]
+    }},
+    {{
+      "title": "Reinforce Through Creative Expression",
+      "points": [
+        "Activities like role-play, drawing, storytelling linked to current gap ({_m5['confidence_pct']}% of {_ns5} made life connections)",
+        "How this strengthens confidence, self-expression and makes cultural outcomes visible"
+      ]
+    }},
+    {{
+      "title": "Strengthen Australian Story Representation",
+      "points": [
+        "Build on {_m5['aus_stories_pct']}% ({_m5['aus_stories_n']} of {_ns5}) prior story recognition — deepen cultural diversity",
+        "How this advances the Theory of Change goal of enriched and diversified Australian storytelling"
+      ]
+    }}
+  ]
+}}
+Rewrite each point in your own words — use the baseline numbers but make the language strategic.""", _ctx5, 1200)
 
             _prog.progress(92, text="Report 5: summary...")
             _page_syn5 = f"=== RAW DATA ===\n{_ctx5}\n\n=== INSIGHT INTERPRETATION ===\n{_aci_interpret}\n\n=== SENTIMENT TABLE ===\n{_aci_sentiment}\n\n=== WEAKNESSES ===\n{_aci_weak}\n\n=== RECOMMENDATION ===\n{_aci_rec}\n\n=== DETAILS ===\n{_aci_recdet}"
-            _aci_summary = _ai(f"""You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's Arts & Cultural Impact report.
-Write ONE cohesive paragraph of 6-7 sentences:
-1. Headline cultural achievement (exact numbers: X% (N of {_ns5}))
-2. Emotional and social cultural impact (Happy, Curious, Belonging)
-3. Australian story reach and representation data
-4. Most critical cultural gaps linked to Theory of Change barriers
-5. Strategic direction across the 3 recommendations
-6. Theory of Change horizon: "a generation of lifelong arts engagers"
-Board-quality conclusion. No headers. No bullet points.""", _page_syn5, 600)
+            _aci_summary = _ai(f"""You are writing the EXECUTIVE SUMMARY for Monkey Baa Theatre's
+Arts & Cultural Impact report. It appears at the bottom and must synthesise ALL
+page findings into a strategic board-level conclusion.
+
+Monkey Baa's Theory of Change cultural mission:
+"Australian storytelling is enriched and diversified."
+"A generation of lifelong arts engagers is cultivated."
+"Young people build increased cultural literacy and openness."
+
+Write ONE cohesive paragraph of 6-7 sentences that:
+1. Opens with the headline cultural achievement (use exact numbers: X% (N of {_ns5}))
+2. Captures the emotional and social cultural impact (Happy, Curious, Belonging)
+3. Addresses Australian story reach and representation data
+4. Names the most critical cultural gaps and links to Theory of Change barriers
+5. Summarises the strategic direction across the 3 recommendations in one sentence
+6. Closes with the Theory of Change horizon: "a generation of lifelong arts engagers"
+
+Board-quality conclusion. Purposeful, warm, actionable. No headers. No bullet points.""", _page_syn5, 600)
 
             st.session_state.update({
                 "aci_interpret":_aci_interpret, "aci_sentiment":_aci_sentiment,
