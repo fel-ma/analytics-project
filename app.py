@@ -494,16 +494,66 @@ if _run_all:
             )
 
             _prog.progress(12, text="Report 2: key trends...")
+
+            # ── Forecast calculation ──────────────────────────────
+            import numpy as _np
+            _fx = _df_a.groupby("Year")["Audience_n"].sum().reset_index()["Year"].astype(int).values
+            _fy = _df_a.groupby("Year")["Audience_n"].sum().reset_index()["Audience_n"].values
+            _fcoeffs      = _np.polyfit(_fx, _fy, 1)
+            _fpoly        = _np.poly1d(_fcoeffs)
+            _forecast_yr  = int(_fx.max()) + 1
+            _forecast_val = max(0, int(_fpoly(_forecast_yr)))
+            _fstd         = _np.std(_fy - _fpoly(_fx))
+            _fupper       = int(_forecast_val + 1.5 * _fstd)
+            _flower       = max(0, int(_forecast_val - 1.5 * _fstd))
+
             _ar_main = _ai(f"""You are an impact analyst for Monkey Baa Theatre, an Australian children's theatre company.
 Monkey Baa's Theory of Change goal for this section:
 EXPAND ACCESS to live theatre for young people, especially those facing geographic, financial or social barriers.
-Return exactly 4 bullet points. Each bullet must: start with •, contain exactly 2 sentences, be 30-50 words total, use exact years and numbers from the data.
+
+Your task is to generate insights for the AUDIENCE TREND OVER TIME line chart.
+Focus EXCLUSIVELY on temporal patterns:
+- growth over time
+- peak years
+- declines or stagnation
+- what the trend suggests about continuity and scale of access
+- a forward-looking insight based on the {_forecast_yr} linear regression forecast
+
+Important writing principles:
+- Use ONLY the data provided
+- Do NOT guess causes, drivers, or explanations unless explicitly supported by the data
+- If the data does not explain why something happened, describe the pattern only
+- Do NOT overclaim impact
+- Keep insights clear, explainable, and grounded in the chart values
+- Support internal decision-making by identifying meaningful patterns, risks, or opportunities
+- Use professional, concise Australian English
+
+Return exactly 5 bullet points.
+Each bullet must:
+- start with •
+- contain exactly 2 sentences
+- be 30–50 words total
+- use exact years and numbers from the data
+- avoid vague language
+
 Required structure:
-1. Overall audience trajectory using exact years and values
-2. Peak year with exact numbers and what it indicates about scale of reach
-3. Any decline, stagnation, or recovery using exact years and values
-4. Connect the trend to the Theory of Change
-Every percentage must include its base in the format: X% (N of {_total:,}). No headers. No markdown beyond the bullet symbol.""", _ctx2, 800)
+1. Describe the overall audience trajectory using exact years and values from the data
+2. Identify the peak year using exact numbers and explain what that peak indicates about scale of reach, without guessing causes
+3. Identify any decline, stagnation, or recovery using exact years and values, and explain what this means for continuity of access
+4. Connect the trend to the Theory of Change by assessing whether audience reach appears to be expanding, fluctuating, or constrained over time
+5. Interpret the {_forecast_yr} linear regression forecast of {_forecast_val:,} young people (range: {_flower:,}–{_fupper:,}). Briefly explain in one short sentence that this was calculated using a linear regression model fitted to historical audience data, then describe what it suggests about future access trajectory aligned with Monkey Baa's Theory of Change.
+
+Style requirements:
+- Be analytical, clear, and easy to understand
+- Use cautious interpretation language such as "indicates", "suggests", or "reflects"
+- Do NOT use headers
+- Do NOT use markdown beyond the bullet symbol
+
+Number rules:
+- Use ONLY numbers that appear in the data or the forecast values provided
+- Every percentage must include its base in the format: X% (N of {_total:,})
+- If a percentage cannot be calculated directly from the provided data, do not create one
+- Never estimate, infer missing values, or fabricate causes""", _ctx2, 900)
 
             _prog.progress(18, text="Report 2: geographic insights...")
             _ar_region = _ai(f"""You are an equity analyst for Monkey Baa Theatre, an Australian children's theatre company.
