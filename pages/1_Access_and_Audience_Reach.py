@@ -1055,20 +1055,68 @@ if insights_summary:
         
         # Gráfico 1
         try:
+            import numpy as _np_pdf
             yearly = df.groupby("Year")["Audience_n"].sum().reset_index()
             yearly["Year"] = yearly["Year"].astype(int)
-            fig1, ax1 = plt.subplots(figsize=(6.5, 2.5))
-            ax1.plot(yearly["Year"], yearly["Audience_n"], marker='o', color='#E8673A', linewidth=2.5, markersize=6)
+
+            # Forecast calculation
+            _px = yearly["Year"].values
+            _py = yearly["Audience_n"].values
+            _pcoeffs      = _np_pdf.polyfit(_px, _py, 1)
+            _ppoly        = _np_pdf.poly1d(_pcoeffs)
+            _pforecast_yr = int(_px.max()) + 1
+            _pforecast_val= max(0, _ppoly(_pforecast_yr))
+            _pstd         = _np_pdf.std(_py - _ppoly(_px))
+            _pupper       = _pforecast_val + 1.5 * _pstd
+            _plower       = max(0, _pforecast_val - 1.5 * _pstd)
+
+            fig1, ax1 = plt.subplots(figsize=(6.5, 2.8))
+
+            # Historical area + line
             ax1.fill_between(yearly["Year"], yearly["Audience_n"], alpha=0.15, color='#E8673A')
-            ax1.set_title("Total Audience Reached", fontsize=11, fontweight='bold', color='#333')
+            ax1.plot(yearly["Year"], yearly["Audience_n"],
+                     marker='o', color='#E8673A', linewidth=2.5, markersize=6, label="Historical")
+
+            # Value labels on historical points
+            for yr, val in zip(yearly["Year"], yearly["Audience_n"]):
+                ax1.annotate(f'{int(val/1000)}k', xy=(yr, val),
+                             xytext=(0, 7), textcoords='offset points',
+                             ha='center', fontsize=7.5, color='#555')
+
+            # Uncertainty band
+            ax1.fill_between(
+                [_px[-1], _pforecast_yr],
+                [_py[-1], _plower],
+                [_py[-1], _pupper],
+                alpha=0.12, color='#E8673A'
+            )
+
+            # Forecast dashed line
+            ax1.plot([_px[-1], _pforecast_yr], [_py[-1], _pforecast_val],
+                     linestyle='--', color='#E8673A', linewidth=2,
+                     marker='D', markersize=6, markerfacecolor='#E8673A',
+                     markeredgecolor='white', markeredgewidth=1.5, label=f"{_pforecast_yr} forecast")
+
+            # Forecast value label
+            ax1.annotate(f'{int(_pforecast_val/1000)}k*',
+                         xy=(_pforecast_yr, _pforecast_val),
+                         xytext=(0, 7), textcoords='offset points',
+                         ha='center', fontsize=7.5, color='#E8673A', fontweight='bold')
+
+            ax1.set_title(f"Total Audience Reached  ◆ {_pforecast_yr} forecast",
+                          fontsize=11, fontweight='bold', color='#333')
             ax1.set_xlabel("Year", fontsize=9)
-            ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x/1000)}k'))
+            ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, p: f'{int(v/1000)}k'))
+            all_yrs = list(yearly["Year"]) + [_pforecast_yr]
+            ax1.set_xticks(all_yrs)
+            ax1.set_xticklabels([str(y) for y in all_yrs], fontsize=8)
             ax1.grid(True, alpha=0.2)
             ax1.set_facecolor('#F5F0EA')
             fig1.patch.set_facecolor('white')
+            ax1.legend(fontsize=7.5, framealpha=0.6, loc='upper left')
             plt.tight_layout()
             img1_buffer = fig_to_bytes(fig1)
-            img1 = Image(img1_buffer, width=6.5*inch, height=2.5*inch)
+            img1 = Image(img1_buffer, width=6.5*inch, height=2.8*inch)
             story.append(img1)
             plt.close(fig1)
         except:
