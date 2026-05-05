@@ -211,16 +211,9 @@ st.markdown("<div style='margin-top:10px'></div>", unsafe_allow_html=True)
 # ── AI button — hidden once insights are already generated ────
 _already_generated = bool(st.session_state.get("ar_main", None))
 if not _already_generated:
-    run = st.button("🚀 Generar reporte", type="primary")
+    run = st.button("🚀 Generate AI Insights", type="primary")
 else:
     run = False
-    st.markdown(f"""
-    <div style='display:inline-flex;align-items:center;gap:8px;
-                background:#E8F5F0;border:1px solid #9fe1cb;border-radius:8px;
-                padding:8px 16px;font-size:13px;font-weight:500;color:#0f6e56;
-                margin-bottom:4px;'>
-      ✅ AI Insights already generated
-    </div>""", unsafe_allow_html=True)
 context          = build_context(df)
 insights_main    = st.session_state.get("ar_main",      None)
 insights_states  = st.session_state.get("ar_states",    None)
@@ -675,7 +668,7 @@ with c1:
     st.plotly_chart(fig_line, use_container_width=True, config={"displayModeBar": False})
 with c2:
     st.markdown(bullets_html(insights_main) if insights_main
-                else placeholder("Haz clic en <b>Generar reporte</b> para cargar el análisis."),
+                else placeholder("Click <b>Generate AI Insights</b> to load the analysis."),
                 unsafe_allow_html=True)
 st.markdown("<hr class='div'>", unsafe_allow_html=True)
 
@@ -855,7 +848,7 @@ st.markdown("<div class='rec-section-title'>🔍 Key Findings & Recommendations<
 if not insights_weak and not insights_rec and not insights_recdet:
     st.markdown(
         "<div style='color:#bbb;font-style:italic;font-size:13px;padding:12px 0;'>"
-        "Haz clic en <b>Generar reporte</b> arriba para cargar hallazgos y recomendaciones.</div>",
+        "Click <b>Generate AI Insights</b> above to load findings and recommendations.</div>",
         unsafe_allow_html=True)
 else:
     # ── Parse Weaknesses ─────────────────────────────────
@@ -982,7 +975,7 @@ st.markdown("<hr class='div'>", unsafe_allow_html=True)
 st.markdown(
     f"<div class='summary-box'>{insights_summary}</div>" if insights_summary
     else "<div class='summary-box' style='color:#bbb;font-style:italic;'>"
-         "Haz clic en <b>Generar reporte</b> para generar el resumen ejecutivo.</div>",
+         "Click <b>Generate AI Insights</b> to generate the executive summary.</div>",
     unsafe_allow_html=True)
 
 # ── Download ─────────────────────────────────────────────

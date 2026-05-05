@@ -254,7 +254,7 @@ TOPIC_DATA = {
 # Get shared data
 # ─────────────────────────────────────────────────────────
 df_survey = st.session_state.get("df_survey", None)
-api_key   = st.session_state.get("api_key", "")
+api_key   = st.secrets.get("OPENAI_API_KEY", "")
 model     = st.session_state.get("model", "gpt-4o")
 
 
@@ -313,9 +313,13 @@ for col, css_class, label, count, sub in kpi_data:
 st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────
-# AI button
+# AI button — hidden once insights are already generated
 # ─────────────────────────────────────────────────────────
-run             = st.button("🚀 Generate AI Insights", type="primary")
+_already_generated = bool(st.session_state.get("fb_insights", None))
+if not _already_generated:
+    run = st.button("🚀 Generate AI Insights", type="primary")
+else:
+    run = False
 ai_insights     = st.session_state.get("fb_insights", None)
 ai_weak         = st.session_state.get("fb_weak",     None)
 ai_rec          = st.session_state.get("fb_rec",      None)

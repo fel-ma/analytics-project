@@ -142,7 +142,7 @@ def placeholder(msg):
  
 # ── Load data ─────────────────────────────────────────────────────────────────
 df_raw  = st.session_state.get("df_survey", None)
-api_key = st.session_state.get("api_key", "")
+api_key = st.secrets.get("OPENAI_API_KEY", "")
 model   = st.session_state.get("model", "gpt-4o")
  
 # ── HEADER (matches page 2 exactly) ──────────────────────────────────────────
@@ -331,8 +331,12 @@ Using all survey data, insights and recommendations, write an executive summary 
 3. Strategic value and return on investment for sponsors
 Tone: executive, persuasive, impact-focused. Max 4 sentences total. No bullet points — flowing prose."""
 
-# ── Generate button ───────────────────────────────────────────────────────────
-run = st.button("🚀 Generate AI Insights", type="primary")
+# ── Generate button — hidden once insights are already generated ──────────────
+_already_generated = bool(st.session_state.get("hqo_insights", None))
+if not _already_generated:
+    run = st.button("🚀 Generate AI Insights", type="primary")
+else:
+    run = False
 
 if run:
     if not api_key:

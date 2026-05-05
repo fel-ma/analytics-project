@@ -297,7 +297,7 @@ def placeholder(msg):
 # Load data
 # ─────────────────────────────────────────────────────────
 df_survey = st.session_state.get("df_survey", None)
-api_key   = st.session_state.get("api_key", "")
+api_key   = st.secrets.get("OPENAI_API_KEY", "")
 model     = st.session_state.get("model", "gpt-4o")
 
 # ─────────────────────────────────────────────────────────
@@ -366,9 +366,13 @@ for col, label, value, sub in kpi_data:
 st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────
-# AI button + session state
+# AI button — hidden once insights are already generated
 # ─────────────────────────────────────────────────────────
-run            = st.button("🚀 Generate AI Insights", type="primary")
+_already_generated = bool(st.session_state.get("aci_interpret", None))
+if not _already_generated:
+    run = st.button("🚀 Generate AI Insights", type="primary")
+else:
+    run = False
 ai_interpret   = st.session_state.get("aci_interpret",  None)
 ai_sentiment   = st.session_state.get("aci_sentiment",  None)
 ai_weak        = st.session_state.get("aci_weak",       None)

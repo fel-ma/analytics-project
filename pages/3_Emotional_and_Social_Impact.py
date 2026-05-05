@@ -77,7 +77,7 @@ st.markdown(f"""
 
 # ── Session state ─────────────────────────────────────────
 df_raw  = st.session_state.get("df_survey", None)
-api_key = st.session_state.get("api_key",   "")
+api_key = st.secrets.get("OPENAI_API_KEY", "")
 model   = st.session_state.get("model",     "gpt-4o")
 
 # ── Header — same pattern as page 2, NO icon ─────────────
@@ -197,8 +197,12 @@ PROMPT_SUMMARY = (
     "(5) Close with one forward-looking strategic recommendation for leadership."
 )
 
-# ── Generate button ───────────────────────────────────────
-run = st.button("🚀 Generate AI Insights", type="primary")
+# ── Generate button — hidden once insights are already generated ──
+_already_generated = bool(st.session_state.get("esi_quality_insight", None))
+if not _already_generated:
+    run = st.button("🚀 Generate AI Insights", type="primary")
+else:
+    run = False
 
 KEY_Q   = "esi_quality_insight"
 KEY_E   = "esi_emotion_insight"
